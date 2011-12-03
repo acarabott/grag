@@ -29,17 +29,22 @@ asslist = sandbox.list(sandbox_name, 100)
 
 needVideo = True
 
-videos = []
+# videos = []
+# 
+# for item in asslist:
+#     if 'title' in item:
+#         if item['title'].find('Music Video') > -1 and item['title'].find('Clip') == -1 and item['format'].find('rm') == -1:
+#             if item['title'].find('Frisky') > -1:
+#                 videos.append(item)
 
-for item in asslist:
-    if 'title' in item:
-        if item['title'].find('Music Video') > -1 and item['title'].find('Clip') == -1:
-            videos.append(item)
-        # print item['id']
 
 print 'selecting video'
-video = random.choice(videos)
-video_asset = sandbox.access(sandbox_name, video['id'])
+# print videos
+# video = random.choice(videos)
+
+# video_asset = sandbox.access(sandbox_name, video['id'])
+video_asset = sandbox.access(sandbox_name, '4a0be7c9d98e734d643adb6b9d31b0e4')
+
 urllib.urlretrieve(video_asset[0]['url'], 'song.mov')
 
 print 'encoding audio'
@@ -80,3 +85,5 @@ f.write('\n')
 print 'done'
 f.close()
 
+## Need to save as correct video format
+## Convert to wav for sc?gst
