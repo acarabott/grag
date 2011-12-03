@@ -1,0 +1,15 @@
+.DS_Store
+
+*.rm
+
+*.mov
+*.avi
+*.mpg
+*.tiff
+*.pdf
+*.psd
+
+*.zip
+*.app
+
+.sass-cache
