@@ -57,7 +57,7 @@ tempo           = song_analysis.analysis.tempo
 
 print 'writing analysis data'
 
-f = open('analysis.txt', 'w')
+f = open('analysis.ena', 'w')
 
 f.write(str(tempo['value']) + '\n')
 

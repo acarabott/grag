@@ -1,7 +1,12 @@
 .DS_Store
 
+*.ena
+*.aiff
+*.aif
+*.mov
+*.wav
 *.rm
-
+*.mp3
 *.mov
 *.avi
 *.mpg
