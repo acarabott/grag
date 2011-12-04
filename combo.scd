@@ -1,17 +1,18 @@
+(
 //Variables
-~directory  = "/Users/arthurc/Documents/programming/computerMusic/grag/";
+~directory  = "sounds/";
 
 ~sandbox    = "emi_professor_green";
 
-~track      = "trackname";
+~track      = "japanese";
 
-~data       = CSVFileReader.read(~directory ++ "sounds/" ++ ~track ++ ".ena");
+~data       = CSVFileReader.read(~directory ++ ~track ++ ".ena");
 ~bpm        = ~data[0][0].asFloat;
 ~clock      = TempoClock(~bpm/60);
 ~beatLength = (1 / (~bpm/60)); 
 ~barCtr     = 0;
 ~beatCtr    = 0;
-~targetTime = [~data[2][~barCtr].split($:)[0].asFloat,~data[3][~beatCtr].split($:)[0].asFloat];
+~targetBpm = [~data[2][~barCtr].split($:)[0].asFloat,~data[3][~beatCtr].split($:)[0].asFloat];
 ~startTime  = Main.elapsedTime;
 
 
@@ -69,8 +70,8 @@ s.waitForBoot {
     ~revSynth       = Synth.after(~filterSynth, \hackRev,[\outBus, ~busses[2], \inBus, ~busses[1], \mix, 0, \room, 1, \damp, 1, \revMix, 1]);
     ~outSynth       = Synth.after(~revSynth, \hackOut,[\inBus, ~busses[2]]);
     
-}.fork;
-}
+}.fork
+};
 
 //Responders
 ~movieResponder = OSCresponderNode(s.addr, 'glitch', {|t, r, msg| }).add;
@@ -79,6 +80,15 @@ s.waitForBoot {
 });
 
 // Functions
+
+~playRate = {arg newRate=(-1),dur=1;
+	~playSynth.set(\amp,0);
+	{
+		~newSynth=Synth(\hackPlay,[\bufnum,~audioBuffer,\startPos,~targetTime[1]*~audioBuffer.sampleRate]);
+		dur.wait;
+		~newSynth.free;
+	}.fork(~clock);
+};
 
 ~setMovieTime = {arg pos;
     {
@@ -161,13 +171,13 @@ s.waitForBoot {
         {~moviePlayer.start}.fork(AppClock);
         ~data[3][0].split($:)[0].asFloat.wait;        
     }.fork
-}
+};
 
 ~stopFunction = {
     ~syncRoutine.stop;
     {~moviePlayer.stop}.fork(AppClock);
     ~trigFunc.stop;
-}
+};
 //Routines 
 
 ~syncRoutine = Routine {
@@ -188,7 +198,7 @@ s.waitForBoot {
     	});
     	//[~targetTime,(Main.elapsedTime-~startTime)].postln;
     	(0.01).wait;
-};
+    }};
 
 
 // GUI
@@ -200,7 +210,7 @@ s.waitForBoot {
 ~imagePaths = (~directory ++ ~sandbox ++ "*.jpg").pathMatch;
 
 ~backgroundImage = SCImage.new(~imagePaths.choose)
-    .scalesWhenResized_(true);
+    .scaleWhenResized_(true);
 ~imageBounds = ~backgroundImage.bounds;
 ~ratio = ~imageBounds.width / ~imageBounds.height;
 ~backgroundImage.setSize(~width, ~width / ~ratio);
@@ -348,8 +358,7 @@ s.waitForBoot {
             ~stopFunction.();
         };
     });
-
-
+  )
 // Functions to call from buttons
 //      ~buttonRetrigStart on mouse down
 //      ~buttonRetrigStop on mouse up
@@ -357,12 +366,12 @@ s.waitForBoot {
 //      filter freq
 // Wobble?
 
-w = Window("window title", Rect(100, 100, 400, 300)).front;
-b = Button(w, Rect(0,0,20,20))
-    .states_([
-        ["State 0", Color.black, Color.white],
-        ["State 1", Color.black, Color.white]
-    ])
-    .action_({|butt|
-        butt.value.postln;  
-    });
+//w = Window("window title", Rect(100, 100, 400, 300)).front;
+//b = Button(w, Rect(0,0,20,20))
+//    .states_([
+//        ["State 0", Color.black, Color.white],
+//        ["State 1", Color.black, Color.white]
+//    ])
+//    .action_({|butt|
+//        butt.value.postln;  
+//    });
