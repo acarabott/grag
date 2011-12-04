@@ -167,7 +167,6 @@ s.waitForBoot {
     ~syncRoutine.stop;
     {~moviePlayer.stop}.fork(AppClock);
     ~trigFunc.stop;
-    
 }
 //Routines 
 

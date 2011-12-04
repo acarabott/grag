@@ -18,6 +18,3 @@ for asset in asslist:
         filename = str(asset['filename']).partition('/')[2];
         image_asset = sandbox.access(sandbox_name, asset['id'])
         urllib.urlretrieve(image_asset[0]['url'], sandbox_name + '_' + filename)
-        
-
-

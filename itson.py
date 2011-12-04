@@ -13,29 +13,25 @@ config.ECHO_NEST_SHARED_SECRET = '9QNMqlVDQWWgMjxJVoej0Q'
 
 sandbox_name = 'emi_japanese_popstars'
 
-# listing = sandbox.list(sandbox_name)
-# asset = sandbox.access(sandbox_name, "0e804b6859738850673ae0fa18a20145")
-
-# url = asset[0]['url']
-
-# f = urllib.urlopen(asset[0]['url'])
-# split = str(url.partition('?')[0])
-
-# urllib.urlretrieve(asset[0]['url'], 'test.mov')
-
 print 'getting list of assets'
 
 asslist = sandbox.list(sandbox_name, 100)
 
-needVideo = True
+for asset in asslist:
 
+images = [];
 videos = []
 
-for item in asslist:
-    if 'title' in item:
-        if item['title'].find('Music Video') > -1 and item['title'].find('Clip') == -1 and item['format'].find('rm') == -1:
-            if item['title'].find('streaming') == -1 and item['format'].find('wmv') == -1:
-                videos.append(item)
+for asset in asslist:
+    if 'title' in asset:
+        if asset['title'].find('Music Video') > -1 and asset['title'].find('Clip') == -1 and asset['format'].find('rm') == -1:
+            if asset['title'].find('streaming') == -1 and asset['format'].find('wmv') == -1:
+                videos.append(asset)
+                
+    if asset['type'] == 'release_image' or asset['type'] == 'video_still':
+        filename = str(asset['filename']).partition('/')[2];
+        image_asset = sandbox.access(sandbox_name, asset['id'])
+        urllib.urlretrieve(image_asset[0]['url'], sandbox_name + '_' + filename)
 
 print 'selecting video'
 # print videos
