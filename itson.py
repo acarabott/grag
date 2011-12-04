@@ -11,18 +11,31 @@ config.ECHO_NEST_API_KEY = "YLTCU72SODVIC00NB"
 config.ECHO_NEST_CONSUMER_KEY = 'd0fe2f9558fb209037fc49a4227ac81d'
 config.ECHO_NEST_SHARED_SECRET = '9QNMqlVDQWWgMjxJVoej0Q'
 
-sandbox_name = 'emi_japanese_popstars'
+sandbox_name = 'emi_professor_green'
 
 print 'getting list of assets'
 
-asslist = sandbox.list(sandbox_name, 100)
-
-for asset in asslist:
-
-images = [];
+more_assets = True
+asslists = []
+images = []
 videos = []
 
-for asset in asslist:
+start = 0
+while more_assets:
+    new_asslist = sandbox.list(sandbox_name, 100, start)
+    start += 100
+    if len(new_asslist) == 0:
+        more_assets = False
+    else:
+        asslists.append(new_asslist)
+
+for i in range(len(asslists)):
+    if i == 0:
+        combo = asslists[i]
+    else:
+        combo = combo + asslists[i]    
+
+for asset in combo:
     if 'title' in asset:
         if asset['title'].find('Music Video') > -1 and asset['title'].find('Clip') == -1 and asset['format'].find('rm') == -1:
             if asset['title'].find('streaming') == -1 and asset['format'].find('wmv') == -1:
@@ -81,7 +94,7 @@ for beat in beats:
 
 f.write('\n')
 
-
+f.write(filename)
 
 print 'done'
 f.close()
