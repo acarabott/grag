@@ -1,5 +1,6 @@
+(
 //Variables
-~directory  = "/Users/arthurc/Documents/programming/computerMusic/grag/";
+~directory  = "sounds/";
 
 ~sandbox    = "emi_professor_green";
 ~track      = "emi_professor_green_EVN24279-mp4-high.mp4";
@@ -11,8 +12,10 @@
 ~beatLength = (1 / (~bpm/60)); 
 ~barCtr     = 0;
 ~beatCtr    = 0;
-~targetTime = [~data[2][~barCtr].split($:)[0].asFloat,~data[3][~beatCtr].split($:)[0].asFloat];
+~targetBpm = [~data[2][~barCtr].split($:)[0].asFloat,~data[3][~beatCtr].split($:)[0].asFloat];
 ~startTime  = Main.elapsedTime;
+~playingBreaks = false;
+~cutting = false;
 
 
 s.waitForBoot {
@@ -30,10 +33,10 @@ s.waitForBoot {
     	Out.ar([0,1],sound)
     }).add;
 
-    SynthDef(\hackHPFilter,{arg outBus,inBus,freq=1500,q=10,mix=0.5;
+    SynthDef(\hackHPFilter,{arg outBus,inBus,freq=1500,q=10,mix=0.5,time=0;
     	var sound,dry,wet;
     	dry=InFeedback.ar(inBus,2);
-    	wet=HPF.ar(dry,freq);
+    	wet=RHPF.ar(dry,freq.lag(time),q);
     	sound=Mix([dry*(1-mix),mix*wet]);
     	Out.ar(outBus,sound);
     }).add;
@@ -69,8 +72,8 @@ s.waitForBoot {
     ~revSynth       = Synth.after(~filterSynth, \hackRev,[\outBus, ~busses[2], \inBus, ~busses[1], \mix, 0, \room, 1, \damp, 1, \revMix, 1]);
     ~outSynth       = Synth.after(~revSynth, \hackOut,[\inBus, ~busses[2]]);
     
-}.fork;
-}
+}.fork
+};
 
 //Responders
 ~movieResponder = OSCresponderNode(s.addr, 'glitch', {|t, r, msg| }).add;
@@ -80,6 +83,31 @@ s.waitForBoot {
 
 // Functions
 
+~playRate = {arg newRate=(-1),dur=1;
+	~playSynth.set(\amp,0);
+	{
+		~newSynth=Synth(\hackPlay,[\bufnum,~audioBuffer,\startPos,~targetTime[1]*~audioBuffer.sampleRate]);
+		dur.wait;
+		~newSynth.free;
+	}.fork(~clock);
+};
+
+~filterSweep = {arg dur=1;
+	{
+		~filterSynth.set(\freq,5000);
+		dur.wait;
+		~filterSynth.set(\freq,10);
+	}.fork(~clock);
+};
+
+~setFilter2D = {arg x,y;
+  	~filterSynth.set(\freq,(x*5000)+10,\q,y*3);	
+};
+
+~setRev2D = {arg x,y;
+	~revSynth.set(\mix,x,\room,y);
+};
+
 ~setMovieTime = {arg pos;
     {
 	    ~moviePlayer.currentTime_(pos);
@@ -87,7 +115,7 @@ s.waitForBoot {
 };
 
 ~newBar = {
-	~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[7.rand], \rate, (~bpm / 96)]);
+	if(~playingBreaks,{~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[7.rand], \rate, (~bpm / 96)])});
 };
 
 ~startTrig={
@@ -108,7 +136,7 @@ s.waitForBoot {
 	~revSynth.set(\mix,0);
 	~filterSynth.set(\mix,0);
 	if(~beatCtr%4==0,{~newBar.value});
-	if(0.35.coin,{~startTrig.value});
+	if((0.35.coin) && (~cutting),{~startTrig.value});
 	if(0.2.coin,{~revSynth.set(\mix,1)});
 	//~breakcore.value;
 	//if(0.1.coin,{~filterSynth.set(\mix,1)});
@@ -161,13 +189,13 @@ s.waitForBoot {
         {~moviePlayer.start}.fork(AppClock);
         ~data[3][0].split($:)[0].asFloat.wait;        
     }.fork
-}
+};
 
 ~stopFunction = {
     ~syncRoutine.stop;
     {~moviePlayer.stop}.fork(AppClock);
     ~trigFunc.stop;
-}
+};
 //Routines 
 
 ~syncRoutine = Routine {
@@ -188,7 +216,7 @@ s.waitForBoot {
     	});
     	//[~targetTime,(Main.elapsedTime-~startTime)].postln;
     	(0.01).wait;
-};
+    }};
 
 
 // GUI
@@ -199,8 +227,7 @@ s.waitForBoot {
 ~win = Window("REEEEMIX", Rect(0, 0, ~width, ~height)).front;
 ~imagePaths = (~directory ++ ~sandbox ++ "*.jpg").pathMatch;
 
-~backgroundImage = SCImage.new(~imagePaths.choose)
-    .scalesWhenResized_(true);
+~backgroundImage = SCImage.new(~imagePaths.choose).scalesWhenResized_(true);
 ~imageBounds = ~backgroundImage.bounds;
 ~ratio = ~imageBounds.width / ~imageBounds.height;
 ~backgroundImage.setSize(~width, ~width / ~ratio);
@@ -348,8 +375,7 @@ s.waitForBoot {
             ~stopFunction.();
         };
     });
-
-
+  )
 // Functions to call from buttons
 //      ~buttonRetrigStart on mouse down
 //      ~buttonRetrigStop on mouse up
@@ -357,12 +383,12 @@ s.waitForBoot {
 //      filter freq
 // Wobble?
 
-w = Window("window title", Rect(100, 100, 400, 300)).front;
-b = Button(w, Rect(0,0,20,20))
-    .states_([
-        ["State 0", Color.black, Color.white],
-        ["State 1", Color.black, Color.white]
-    ])
-    .action_({|butt|
-        butt.value.postln;  
-    });
+//w = Window("window title", Rect(100, 100, 400, 300)).front;
+//b = Button(w, Rect(0,0,20,20))
+//    .states_([
+//        ["State 0", Color.black, Color.white],
+//        ["State 1", Color.black, Color.white]
+//    ])
+//    .action_({|butt|
+//        butt.value.postln;  
+//    });
