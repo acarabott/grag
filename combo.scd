@@ -48,12 +48,13 @@ s.waitForBoot {
     	Out.ar([0,1],sound)
     }).add;
 
-    SynthDef(\hackHPFilter,{arg outBus,inBus,freq=1500,q=10,mix=0.5,time=0;
+    SynthDef(\hackHPFilter,{arg outBus,inBus,freq=1500,q=10,mix=0.5,time=0, type=0, res=0.3, amp=1;
     	var sound,dry,wet;
     	dry=InFeedback.ar(inBus,2);
-    	wet=RHPF.ar(dry,freq.lag(time),q);
+        // wet=RHPF.ar(dry,freq.lag(time),q);
+        wet = DFM1.ar(dry, freq, res, 0.3, type);
     	sound=Mix([dry*(1-mix),mix*wet]);
-    	Out.ar(outBus,sound);
+    	Out.ar(outBus,sound*amp);
     }).add;
 
     SynthDef(\hackPlay,{arg bufnum,amp=1,t_trig,rate=1,length=1,loop=1,startPos,outBus;
@@ -79,6 +80,7 @@ s.waitForBoot {
     //Buffers
     ~audioBuffer    = MP3.readToBuffer(s,~directory++~track++".mp3");
     ~breakBuffers   = Array.fill(8, {arg i; Buffer.read(s, ~directory ++ "breaks/BREAK"++(i+1)++".aif")});
+
     s.sync;
     //Busses
     ~busses = Array.fill(3, {Bus.audio(s,2)});
@@ -144,7 +146,7 @@ s.waitForBoot {
 ~setFilter2D = {arg x,y;
     "filter".postln;
     // [x,y].postln;
-    ~filterSynth.set(\mix, 0.7, \freq,x.linlin(0, 1, 10, 5000) ,\q, y.linlin(0, 1, 0.1, 2));  
+    ~filterSynth.set(\mix, 0.7, \freq, x.linlin(0, 1, 10, 5000), \res, y.linlin(0, 1, 0.1, 0.9), \amp, y.linlin(0, 1, 1, 0.8));  
 };
 
 ~setRev2D = {arg x,y;
