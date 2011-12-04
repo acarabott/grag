@@ -16,7 +16,7 @@
 ~startTime  = Main.elapsedTime;
 ~playingBreaks = false;
 ~cutting = false;
-
+~scale=[0,2,4,5,7,9,11]+1;
 
 s.waitForBoot {
 {
@@ -26,6 +26,18 @@ s.waitForBoot {
     	values:[MouseX.kr(0,1),MouseY.kr(0,1)]
     	)
     }).add;
+
+	SynthDef(\hackWobble,{arg freq=100,modFreq=2,filterFreq=100,depth=100,bpm,amp=1;
+	var son,sweep,trig;
+	   trig = CoinGate.kr(0.5,(Impulse.kr(bpm/60))); 
+ Ê 	  sweep = LFSaw.ar(Demand.kr(trig, 0, Drand([1, 2, 2, 3, 4, 5, 6, 8, 16], inf))).exprange(40, 5000); 	 
+ 	  son = LFSaw.ar(freq * [0.99, 1, 1.01]).sum; 
+Ê Ê Ê Ê son = LPF.ar(son, sweep); 
+Ê Ê Ê Ê son = Normalizer.ar(son); 
+Ê Ê Ê Ê son = son + BPF.ar(son, 2000, 2); 
+	  son = son + GVerb.ar(son, 10, 0.1, 0.7, mul: 0.3); 	
+	Out.ar([0,1],son*0.2*amp);
+}).store;
 
     SynthDef(\hackOut,{arg inBus;
     	var sound;
@@ -83,6 +95,11 @@ s.waitForBoot {
 
 // Functions
 
+~updateWobble={arg x,y;
+~wobbleSynth.set(\amp,x,\freq,~scale[(y*7).floor]*50);
+~playSynth.set(\amp,(1-x));	
+}
+
 ~playRate = {arg newRate=(-1),dur=1;
 	~playSynth.set(\amp,0);
 	{
@@ -113,6 +130,22 @@ s.waitForBoot {
 	    ~moviePlayer.currentTime_(pos);
     }.fork(AppClock);
 };
+
+~setBreaksOn={
+	playingBreaks=true;
+}
+
+~setBreaksOff={
+	playingBreaks=false;
+}
+
+~setAutoChopsOn={
+	cutting=true;
+}
+
+~setAutoChopsOff={
+	cutting=false;
+}
 
 ~newBar = {
 	if(~playingBreaks,{~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[7.rand], \rate, (~bpm / 96)])});
@@ -187,7 +220,8 @@ s.waitForBoot {
     {
         ~syncRoutine.play;
         {~moviePlayer.start}.fork(AppClock);
-        ~data[3][0].split($:)[0].asFloat.wait;        
+        ~data[3][0].split($:)[0].asFloat.wait; 
+        ~wobbleSynth=Synth(\hackWobble,[\freq,50,\bpm,140,\amp,0]);       
     }.fork
 };
 
