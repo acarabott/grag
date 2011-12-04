@@ -84,12 +84,15 @@ s.waitForBoot {
 // Functions
 
 ~playRate = {arg newRate=(-1),dur=1;
-	~playSynth.set(\amp,0);
 	{
+    	~playSynth.set(\amp,0);
 		~newSynth=Synth(\hackPlay,[\bufnum,~audioBuffer,\startPos,~targetTime[1]*~audioBuffer.sampleRate]);
 		dur.wait;
 		~newSynth.free;
+		~playSynth.set(\amp, 1);
+    	
 	}.fork(~clock);
+	
 };
 
 ~filterSweep = {arg dur=1;
@@ -108,6 +111,32 @@ s.waitForBoot {
 	~revSynth.set(\mix,x,\room,y);
 };
 
+~buttonRetrigStart = {
+	if(0.5.coin,{
+		~retrigRate.value([2,4,8,16,32].choose,(rrand(0,4)),[2,-2,-0.5].choose);
+	},{
+		~retrig.value([2,4,8,16,32].choose,(rrand(0,4)));
+	});
+};
+
+~buttonRetrigStop = {
+	~playSynth.set(\rate,1);
+	~trigFunc.stop;
+};
+
+~startTrig={
+	if(0.5.coin, {
+    	~retrigRate.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),[2,-2,-0.5].choose,~playSynth);
+	},{
+    	~retrig.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),~playSynth);
+	});
+};
+
+~actionFunctions = Dictionary[];
+~actionFunctions['hit'] = [~playrate, ~filterSweep];
+~actionFunctions['2D'] = [~setFilter2D, ~setRev2D];
+~actionFunctions['toggle'] = [[~buttonRetrigStart, ~buttonRetrigStop]];
+
 ~setMovieTime = {arg pos;
     {
 	    ~moviePlayer.currentTime_(pos);
@@ -118,13 +147,6 @@ s.waitForBoot {
 	if(~playingBreaks,{~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[7.rand], \rate, (~bpm / 96)])});
 };
 
-~startTrig={
-	if(0.5.coin, {
-    	~retrigRate.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),[2,-2,-0.5].choose,~playSynth);
-	},{
-    	~retrig.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),~playSynth);
-	});
-};
 
 ~stopTrig={
 	~trigFunc.stop;
@@ -168,19 +190,6 @@ s.waitForBoot {
 		trackBuffer.set(\t_trig,1,\startPos,~audioBuffer.sampleRate*~beatLength*(~beatCtr),\rate,1+(increment*i));
 		(1/rate).wait;
 	}}.fork(~clock);
-};
-
-~buttonRetrigStart = {
-	if(0.5.coin,{
-		~retrigRate.value([2,4,8,16,32].choose,(rrand(0,4)),[2,-2,-0.5].choose);
-	},{
-		~retrig.value([2,4,8,16,32].choose,(rrand(0,4)));
-	});
-};
-
-~buttonRetrigStop = {
-	~playSynth.set(\rate,1);
-	~trigFunc.stop;
 };
 
 ~startFunction = {
@@ -282,6 +291,24 @@ s.waitForBoot {
 ~guiControlStates = Dictionary[];
 ~guiControlFunctions = Dictionary[];
 
+~chosenFunctions = Array.newClear(~numCornerElements);
+
+
+~numCornerElements.do { |i|
+    var key = ~actionFunctions.keys.choose;
+    
+    ~getFunctionKey = {
+        if(~actionFunctions[key].size != 0) {
+            ~chosenFunction[i] = [key, ~actionFunctions[key].pop];
+        } {
+            ~actionFunctions.removeAt(key);
+            ~getFunctionKey.();
+        };        
+    };
+    
+    
+};
+
 ~cornerElements.do { |item, i|
     var bounds;
     var mult;
@@ -318,7 +345,7 @@ s.waitForBoot {
         
         ~guiControls[symbol] = UserView(item, bounds);
         ~guiControlStates[symbol] = false;
-        ~guiControlFunctions[symbol] = {};
+        ~guiControlFunctions[symbol] = [{}, 'hit'];
         ~guiControls[symbol].background_(Color.black);
         ~guiControls[symbol].backgroundImage_(image, alpha:alpha);
         
@@ -353,13 +380,14 @@ s.waitForBoot {
         //2D sliders
         ~guiControls[symbol] = Slider2D(item, bounds);
         ~guiControls[symbol].backgroundImage_(image, alpha:0.4);
-        ~guiControlFunctions[symbol] = {};
+        ~guiControlFunctions[symbol] = [{},'2D'];
         ~guiControls[symbol].action_({|slider|
             ~guiControlFunctions[symbol].(slider.x, slider,y);
             ~guiControls[symbol].backgroundImage_(image, alpha:[slider.x, slider.y].mean.linlin(0, 1, 0.4, 1));
         });
     };
 };
+
 
 //Play Button
 ~playWidth = 300;
