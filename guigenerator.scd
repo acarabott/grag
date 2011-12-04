@@ -3,7 +3,7 @@ if(~window.notNil) {
         ~window.close;
     };
 };
-~sandbox = "emi_tinie_tempah";
+~sandbox = "emi_professor_green";
 
 ~sbounds = Window.screenBounds;
 ~width = ~sbounds.height;
@@ -27,9 +27,10 @@ if(~window.notNil) {
 ~moviePlayer = SCMovieView(~win, Rect((~width-~movieWidth)/2, ~movieTop, ~movieWidth, ~movieHeight));
 ~moviePlayer.path_("sounds/song.m4v");
 ~moviePlayer.showControllerAndAdjustSize(false,false);
-
-~moviePlayer.start;
-~moviePlayer.stop;
+~moviePlayer.visible = false;
+~moviePlayer.background_(Color.clear);
+// ~moviePlayer.start;
+// ~moviePlayer.stop;
 
 ~userView.mouseMoveAction_({|view, x, y, mod|
 
@@ -186,6 +187,7 @@ if(~numCornerElements > 0) {
         ["Stop", Color.white, Color.black]
     ])
     .action_({|butt|
+        ~moviePlayer.visible = true;
         // Play Action
     });
 
