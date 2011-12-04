@@ -118,7 +118,6 @@ if(~numCornerElements > 0) {
     dimension = height * mult;
     
     bounds = Rect((width - dimension)/2, (height - dimension)/2, dimension, dimension);
-    // bounds = Rect((width - (item.bounds.height*mult))/2, (item.bounds.height - (item.bounds.height * (mult+0.15)))/2, (item.bounds.height) * mult, (item.bounds.height) * mult);
     
     image = SCImage.new(~imagePaths.choose).scalesWhenResized_(true);
     image.setSize(bounds.width, bounds.height);

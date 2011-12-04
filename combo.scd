@@ -1,6 +1,10 @@
 //Variables
-~directory  = "path/toshit/";
+~directory  = "/Users/arthurc/Documents/programming/computerMusic/grag/";
+
+~sandbox    = "emi_professor_green";
+
 ~track      = "trackname";
+
 ~data       = CSVFileReader.read(~directory ++ "sounds/" ++ ~track ++ ".ena");
 ~bpm        = ~data[0][0].asFloat;
 ~clock      = TempoClock(~bpm/60);
@@ -159,6 +163,12 @@ s.waitForBoot {
     }.fork
 }
 
+~stopFunction = {
+    ~syncRoutine.stop;
+    {~moviePlayer.stop}.fork(AppClock);
+    ~trigFunc.stop;
+    
+}
 //Routines 
 
 ~syncRoutine = Routine {
@@ -181,9 +191,179 @@ s.waitForBoot {
     	(0.01).wait;
 };
 
+
+// GUI
+
+~sbounds = Window.screenBounds;
+~width = ~sbounds.height;
+~height = ~width - 30;
+~win = Window("REEEEMIX", Rect(0, 0, ~width, ~height)).front;
+~imagePaths = (~directory ++ ~sandbox ++ "*.jpg").pathMatch;
+
+~backgroundImage = SCImage.new(~imagePaths.choose)
+    .scalesWhenResized_(true);
+~imageBounds = ~backgroundImage.bounds;
+~ratio = ~imageBounds.width / ~imageBounds.height;
+~backgroundImage.setSize(~width, ~width / ~ratio);
+~win.view.backgroundImage_(~backgroundImage);
+
+~movieHeight    = ~sbounds.height/2;
+~movieWidth     = ~sbounds.width/2;
+~movieTop       = 0 + (~movieHeight/2);
+~moviePlayer    = SCMovieView(~win, Rect((~width-~movieWidth)/2, ~movieTop, ~movieWidth, ~movieHeight));
+~moviePlayer.path_(~directory ++ ~track ++ "mp4"); // this might need to be different?
+~moviePlayer.showControllerAndAdjustSize(false,false);
+~moviePlayer.visible = false;
+~moviePlayer.background_(Color.clear);
+
+~numCornerElements = 4;
+~cornerElements = Array.newClear(~numCornerElements);
+
+~numCornerElements.do { |i|
+    var corner, bounds;
+    var width, height;
+    var view;
+    
+    corner = i;
+    
+    width = ~width /2;
+    height = (~height - ~movieHeight)/2;
+    switch (corner)
+        {0}  {
+            bounds = Rect(0,0, width, height);
+        }
+        {1}  {
+            bounds = Rect(width, 0, width, height);
+        }
+        {2}  {
+            bounds = Rect(0, ~height-height, width, height);            
+        }
+        {3}  {
+            bounds = Rect(width, ~height-height, width, height);            
+            
+        };
+    
+    view = CompositeView(~win, bounds);
+    // view.background_(Color.rand);
+    ~cornerElements[i] = view;
+
+};
+
+~guiControls = Dictionary[];
+~guiControlStates = Dictionary[];
+~guiControlFunctions = Dictionary[];
+
+~cornerElements.do { |item, i|
+    var bounds;
+    var mult;
+    var height;
+    var width;
+    var dimension;
+    var image;
+    var alpha;
+    var buttonIsHold;
+    var index;
+    var symbol;
+    
+    mult = 0.75;
+    
+    height = item.bounds.height;
+    width = item.bounds.width;
+    dimension = height * mult;
+    
+    bounds = Rect((width - dimension)/2, (height - dimension)/2, dimension, dimension);
+    
+    image = SCImage.new(~imagePaths.choose).scalesWhenResized_(true);
+    image.setSize(bounds.width, bounds.height);
+    
+    symbol = i.asSymbol;
+    
+    if(0.5.coin) {
+        if(0.5.coin) {
+            buttonIsHold = true;
+            alpha = 0.5;
+        } {
+            buttonIsHold = false;
+            alpha = 0.5;
+        };
+        
+        ~guiControls[symbol] = UserView(item, bounds);
+        ~guiControlStates[symbol] = false;
+        ~guiControlFunctions[symbol] = {};
+        ~guiControls[symbol].background_(Color.black);
+        ~guiControls[symbol].backgroundImage_(image, alpha:alpha);
+        
+        if(buttonIsHold.not) {
+            // Sticky buttons
+            ~guiControls[symbol].mouseDownAction_({
+                if(~guiControlStates[symbol]) {
+                    ~guiControls[symbol].backgroundImage_(image, alpha:0.5);
+                    ~guiControlFunctions[symbol].(0);
+                } {
+                    ~guiControls[symbol].backgroundImage_(image, alpha:1);
+                    ~guiControlFunctions[symbol].(1);
+                };
+                ~guiControlStates[symbol] = ~guiControlStates[symbol].not;
+            });
+        } {
+            // Hold down buttons
+            ~guiControls[symbol].mouseDownAction_({
+                ~guiControls[symbol].backgroundImage_(image, alpha:1);
+                ~guiControlFunctions[symbol].(1);
+                ~guiControlStates[~guiControlStates.size-1] = ~guiControlStates[symbol].not;
+            });
+            ~guiControls[symbol].mouseUpAction_({
+                ~guiControls[symbol].backgroundImage_(image, alpha:0.5);
+                ~guiControlFunctions[symbol].(0);
+                ~guiControlStates[~guiControlStates.size-1] = ~guiControlStates[symbol].not;
+            });
+            
+        };
+        
+    } {
+        //2D sliders
+        ~guiControls[symbol] = Slider2D(item, bounds);
+        ~guiControls[symbol].backgroundImage_(image, alpha:0.4);
+        ~guiControlFunctions[symbol] = {};
+        ~guiControls[symbol].action_({|slider|
+            ~guiControlFunctions[symbol].(slider.x, slider,y);
+            ~guiControls[symbol].backgroundImage_(image, alpha:[slider.x, slider.y].mean.linlin(0, 1, 0.4, 1));
+        });
+    };
+};
+
+//Play Button
+~playWidth = 300;
+~playButton = Button(~win, Rect((~width-~playWidth)/2, 975, ~playWidth, 100))
+    .font_(Font("Santa Fe LET", 70))
+    .states_([
+        ["Play", Color.black, Color.white],
+        ["Stop", Color.white, Color.black]
+    ])
+    .action_({|butt|
+        if(butt.state == 1) {
+            ~moviePlayer.visible = true;
+            ~startFunction.();
+        } {
+            ~moviePlayer.visible = false;
+            ~stopFunction.();
+        };
+    });
+
+
 // Functions to call from buttons
 //      ~buttonRetrigStart on mouse down
 //      ~buttonRetrigStop on mouse up
 //      revMix=0,room=0,damp=0,mix=0.5
 //      filter freq
 // Wobble?
+
+w = Window("window title", Rect(100, 100, 400, 300)).front;
+b = Button(w, Rect(0,0,20,20))
+    .states_([
+        ["State 0", Color.black, Color.white],
+        ["State 1", Color.black, Color.white]
+    ])
+    .action_({|butt|
+        butt.value.postln;  
+    });
