@@ -59,7 +59,7 @@ s.waitForBoot {
     SynthDef(\hackPlay,{arg bufnum,amp=1,t_trig,rate=1,length=1,loop=1,startPos,outBus;
     	var sound,env;
     	env=EnvGen.ar(Env([1,1,0],[(BufFrames.kr(bufnum)/BufSampleRate.kr(bufnum))*length,0]), doneAction:2);
-    	sound=PlayBuf.ar(2, bufnum, BufRateScale.kr(bufnum)*rate, t_trig, startPos,loop);
+    	sound=PlayBuf.ar(2, bufnum, BufRateScale.kr(bufnum)*rate.lag(0.5), t_trig, startPos,loop);
     	SendReply.kr(t_trig,'glitch',startPos);
     	
     	Out.ar(outBus,
@@ -106,16 +106,26 @@ s.waitForBoot {
 ~playSynth.set(\amp,(1-x));	
 };
 
-~playRate = {arg newRate=(-1),dur=1;
+~playRateOn = {
+    var dur, newRate;
+    
+    newRate = [0.5, -1, 2].choose;
+    dur = [1,2].choose;
+    
+    if(dur == 1 && (0.5.coin)) {
+        newRate = -2;
+    };
     "PLAYYYYYYRATE".postln;
-	{
-    	~playSynth.set(\amp,0);
-		~newSynth=Synth(\hackPlay,[\bufnum,~audioBuffer,\startPos,~targetTime[1]*~audioBuffer.sampleRate, \amp, 1]);
-		dur.wait;
-		~newSynth.free;
-		~playSynth.set(\amp, 1);
-    	
-	}.fork(~clock);
+	~playSynth.set(\amp,0);
+	~newSynth=Synth(\hackPlay,[\bufnum,~audioBuffer, \startPos,~targetTime[1]*~audioBuffer.sampleRate, \amp, 1, \rate, newRate]);
+	{~moviePlayer.rate_(newRate)}.fork(AppClock);
+	
+};
+
+~playRateOff = {
+    ~newSynth.free;
+	~playSynth.set(\amp, 1);      
+	{~moviePlayer.rate_(1)}.fork(AppClock);
 	
 };
 
@@ -362,9 +372,9 @@ s.waitForBoot {
 
 
 ~actionFunctions = Dictionary[];
-~actionFunctions['hit'] = [~playRate, ~setBreaks];
+~actionFunctions['hit'] = [~setBreaks];
 ~actionFunctions['2D'] = [~setFilter2D, ~setRev2D];
-~actionFunctions['toggle'] = [[~buttonRetrigStart, ~buttonRetrigStop]];
+~actionFunctions['toggle'] = [[~buttonRetrigStart, ~buttonRetrigStop], [~playRateOn, ~playRateOff]];
 
 ~chosenFunctions = Array.newClear(~numCornerElements);
 
