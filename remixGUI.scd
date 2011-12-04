@@ -1,4 +1,4 @@
-(
+(
 var window,track,width,height,bGround,imageUrl,mouse,xSegs,ySegs,view,x,y,drawLoop,glitch=2,clock,playSynth;
 ~track="Japanese";
 //View
