@@ -1,23 +1,20 @@
 (
-var window,track,width,height,bGround,imageUrl,moviePlayer,mouse,xSegs,ySegs,view,x,y,drawLoop,bpm=96,glitch=2,beatPos,clock,playSynth,buf,beatLength;
-track="Nas is Like";
+var window,track,width,height,bGround,imageUrl,mouse,xSegs,ySegs,view,x,y,drawLoop,glitch=2,clock,playSynth;
+track="Frisky";
 //View
+~data=CSVFileReader.read("sounds/"++track++".ena");
+~bpm=~data[0][0].asFloat;
+[~bpm.postln,~bpm.class].postln;
 height=Window.screenBounds.height;
 width=Window.screenBounds.width;
 window= SCWindow.new("Louis and Arthurs Remix of "++track,Rect(200,0,width,height)).front;
 view=window.view;
 view.enabled_(true);
 view.visible_(true);
-//Background Image
-imageUrl="http://images.zap2it.com/images/celeb-78725/bing-crosby-1.jpg";
-bGround=SCImage.new(imageUrl);
-window.drawHook_({
-	//bGround.drawInRect(Rect(0,0,width,height));
-	});
 //Movie Player
-moviePlayer=SCMovieView(window,Rect(width/4,height/4,width/2,height/2));
-moviePlayer.showControllerAndAdjustSize(false,false);
-moviePlayer.path_("sounds/"++track++".mpg").muted_(true).editable_(true);
+~moviePlayer=SCMovieView(window,Rect(width/4,height/4,width/2,height/2));
+~moviePlayer.showControllerAndAdjustSize(false,false);
+~moviePlayer.path_("sounds/"++track++".m4v").muted_(true).editable_(true);
 //Mouse Interaction
 xSegs=8;
 ySegs=8;
@@ -36,56 +33,81 @@ OSCresponder(s.addr,'glitch',{arg time,responder,msg;
 
 ~setMovieTime={arg pos;
 {
-	moviePlayer.currentTime_(pos);
+	~moviePlayer.currentTime_(pos);
 }.fork(AppClock);
 };
 //Music!!!
-bpm=95;
-clock=TempoClock(bpm/60);
-beatLength=(1/(bpm/60)); 
+clock=TempoClock(~bpm/60);
+~beatLength=(1/(~bpm/60)); 
 {
-//~buf=Buffer.read(s,"sounds/Nas is Like.WAV");
-~buf=Buffer.read(s,"sounds/"++track++".aif");
+~buf=MP3.readToBuffer(s,"sounds/"++track++".mp3");
 ~buses=Array.fill(4,{Bus.audio(s,2)});
+~buffer=Array.fill(8,{arg i;Buffer.read(s,"sounds/breaks/BREAK"++(i+1)++".aif")});
 1.wait;
 s.latency=0;
+//Layer effects
 ~playSynth=Synth(\hackPlay,[\bufnum,~buf,\outBus,~buses[0]]);
 ~filterSynth=Synth(\hackFilter,[\outBus,~buses[1],\inBus,~buses[0],\freq,100,\mix,0]);
 ~revSynth=Synth(\hackRev,[\outBus,~buses[2],\inBus,~buses[1],\mix,1,\room,1,\damp,1,\revMix,1]);
 ~outSynth=Synth(\hackOut,[\inBus,~buses[2]]);
-moviePlayer.start;
-beatPos=0;
+~moviePlayer.start;
+~data[3][0].split($:)[0].asFloat.wait;
+
+~newBar={
+	~break=Synth(\hackPlay,[\bufnum,~buffer[7.0.rand.floor],\rate,~bpm/96]);
+};
+
+~startTrig={
+	if(0.5.coin,{
+	~retrigRate.value([2,4,8,16,32].choose,(rrand(0,4)),[2,-2,-0.5].choose);
+	},{
+	~retrig.value([2,4,8,16,32].choose,(rrand(0,4)));
+	});
+};
+~stopTrig={
+	"mouse up".postln;
+	~playSynth.set(\rate,1,\t_trig,1,\startPos,~targetTime[1]*44100);
+	~break.set(\t_trig,1,\startPos,((~beatCtr%4))*~beatLength*44100);
+	~targetTime[1].postln;
+	~trigFunc.stop;
+};
+~newBeat={
+	~stopTrig.value;
+	if(~beatCtr%4==0,{~newBar.value});
+	if(0.5.coin,{~startTrig.value});
+};
+//Timing
+~barCtr=0;
+~beatCtr=0;
+~targetTime=[~data[2][~barCtr].split($:)[0].asFloat,~data[3][~beatCtr].split($:)[0].asFloat];
+~startTime=Main.elapsedTime;
 {inf.do{
-		~inbar=[[(0.1*glitch).coin,(0.05*glitch).coin,(0.1*glitch).coin,(0.1*glitch).coin],
-      		  [(0.1*glitch).coin,(0.05*glitch).coin,(0.1*glitch).coin,(0.1*glitch).coin],
-       		  [(0.1*glitch).coin,(0.01*glitch).coin,(0.1*glitch).coin,(0.1*glitch).coin],
-                [(0.3*glitch).coin,(0.1*glitch).coin,(0.15*glitch).coin,(0.15*glitch).coin]];
-		{4.do{
-//			if(~inbar[beatPos%4][0],{
-//				["glitch",~buf.sampleRate*beatLength*(beatPos+(rrand(0,4)))].postln;
-//					if(0.5.coin,{
-//						~retrigRate.value([2,4,8,16,32].choose,(rrand(0,4)),[2,-2,-0.5].choose);
-//						},{
-//						~retrig.value([2,4,8,16,32].choose,(rrand(0,4)));
-//						});
-//				});
-//				if(~inbar[beatPos%4][1],{
-//					"rev".postln;
-//					//~revSynth.set(\mix,0);
-//				});
-			1.wait;
-			beatPos=beatPos+1;
-			beatPos.postln;
-		}}.fork(clock);
-		4.wait;
-}}.fork(clock);
+	if((Main.elapsedTime-~startTime)>~targetTime[0],{
+		"BAR".postln;
+		//Synth(\bleep);
+		//~newBar.value;
+		~barCtr=~barCtr+1;
+		~targetTime[0]=~data[2][~barCtr].split($:)[0].asFloat;
+	});
+	if((Main.elapsedTime-~startTime)>~targetTime[1],{
+		"BEAT".postln;
+		//Synth(\bleep);
+		~newBeat.value;
+		~beatCtr=~beatCtr+1;
+		~targetTime[1]=~data[3][~beatCtr].split($:)[0].asFloat;
+	});
+	//[~targetTime,(Main.elapsedTime-~startTime)].postln;
+	(0.005).wait;
+}}.fork;
+
 }.fork(AppClock);
 
 //Effect Functions
+
 ~retrig={arg rate,randPos;
 	~trigFunc={inf.do{
-		["retrig",~buf.sampleRate*beatLength*(beatPos+randPos)].postln;
-		~playSynth.set(\t_trig,1,\startPos,~buf.sampleRate*beatLength*(beatPos+randPos));
+		//["retrig",~buf.sampleRate*beatLength*(beatPos+randPos)].postln;
+		~playSynth.set(\t_trig,1,\startPos,~buf.sampleRate*~beatLength*(~beatCtr));
 		(1/rate).wait;
 	}}.fork(clock);
 };
@@ -93,11 +115,12 @@ beatPos=0;
 	var increment;
 	increment=target/rate;
 	~trigFunc={inf.do{arg i;
-		["retrig",~buf.sampleRate*beatLength*(beatPos+randPos)].postln;
-		~playSynth.set(\t_trig,1,\startPos,~buf.sampleRate*beatLength*(beatPos+randPos),\rate,1+(increment*i));
+		//["retrig",~buf.sampleRate*beatLength*(beatPos+randPos)].postln;
+		~playSynth.set(\t_trig,1,\startPos,~buf.sampleRate*~beatLength*(~beatCtr),\rate,1+(increment*i));
 		(1/rate).wait;
 	}}.fork(clock);
 };
+
 //Buttons!
 ~buttons=List.new(0);
 ~buttons.add(SCUserView(window,Rect(0,0,50,50)));
@@ -116,6 +139,25 @@ beatPos=0;
 	~trigFunc.stop;
 });
 )
+
+
+
+~retrigBreak={arg rate,randPos,dur;
+	~trigFunc={rate.do{
+		~break.set(\t_trig,1,\startPos,0);
+		(dur/rate).wait;
+	}}.fork(clock);
+};
+~retrigRateBreak={arg rate,randPos,target,dur;
+	var increment;
+	"trig".postln;
+	increment=target/rate;
+	~trigFunc={rate.do{arg i;
+		~break.set(\t_trig,1,\startPos,0,\rate,1+(increment*i));
+		(dur/rate).wait;
+	}}.fork(clock);
+};
+
 (
 //Effect Functions
 ~retrig={arg rate,randPos,dur;
@@ -195,7 +237,9 @@ SynthDef(\hackRev,{arg inBus,outBus,revMix=0,room=0,damp=0,mix=0.5;
 }).store;
 
 )
-
+SynthDef(\bleep,{
+	Out.ar(0,SinOsc.ar(440)*Line.ar(1,1,0.1,doneAction:2));
+}).store
 LBuf.ar
 
 Pen
@@ -209,7 +253,7 @@ w.view.background_(Color.red(rrand(0.0, 1), rrand(0.0, 0.5)));
 }}.fork(AppClock);
 )
 w.view.mouseMove();
-m = SCMovieView(w, Rect(0,0,480, 360)); Â  Â 
+m = SCMovieView(w, Rect(0,0,480, 360)); Ê Ê
 m.showControllerAndAdjustSize(false, false);
 m.path_("sounds/scale.mp4");
 //drawLoop=
