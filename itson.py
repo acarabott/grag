@@ -12,6 +12,7 @@ config.ECHO_NEST_CONSUMER_KEY = 'd0fe2f9558fb209037fc49a4227ac81d'
 config.ECHO_NEST_SHARED_SECRET = '9QNMqlVDQWWgMjxJVoej0Q'
 
 sandbox_name = 'emi_professor_green'
+# sandbox_name = 'emi_tinie_tempah'
 
 print 'getting list of assets'
 
@@ -39,12 +40,14 @@ for asset in combo:
     if 'title' in asset:
          if asset['title'].find('Music Video') > -1 and asset['filename'].find('mp4') > -1:
              if asset['filename'].find('high') > -1:                
-                 videos.append(asset)
+                 # videos.append(asset)
+                 if asset['id'].find('2dd895f242b8b325053ae5cb853ad1d5'):
+                     videos.append(asset)
      
-    if asset['type'] == 'release_image':
-        filename = str(asset['filename']).partition('/')[2];
-        image_asset = sandbox.access(sandbox_name, asset['id'])
-        urllib.urlretrieve(image_asset[0]['url'], sandbox_name + '_' + filename)
+    # if asset['type'] == 'release_image':
+    #     filename = str(asset['filename']).partition('/')[2];
+    #     image_asset = sandbox.access(sandbox_name, asset['id'])
+    #     urllib.urlretrieve(image_asset[0]['url'], sandbox_name + '_' + filename)
             
 print 'selecting video'
 
@@ -52,8 +55,9 @@ video = random.choice(videos)
 filename = str(video['filename']).partition('/')[2];
 
 print filename
-video_asset = sandbox.access(sandbox_name, video['id'])
-# video_asset = sandbox.access(sandbox_name, '4a0be7c9d98e734d643adb6b9d31b0e4')
+
+# video_asset = sandbox.access(sandbox_name, video['id'])
+video_asset = sandbox.access(sandbox_name, '2dd895f242b8b325053ae5cb853ad1d5')
 
 urllib.urlretrieve(video_asset[0]['url'], sandbox_name + '_' + filename)
 

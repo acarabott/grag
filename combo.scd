@@ -2,8 +2,11 @@
 //Variables
 ~directory  = "/Users/arthurc/Documents/programming/computerMusic/grag/";
 
+// ~sandbox    = "emi_tinie_tempah";
+// ~track      = "emi_tinie_tempah_EVN19323-mp4-high.mp4";
 ~sandbox    = "emi_professor_green";
-~track      = "emi_professor_green_EVN24279-mp4-high.mp4";
+// ~track      = "emi_professor_green_EVN24279-mp4-high.mp4"
+~track = "emi_professor_green_EVN21533-mp4-high.mp4";
 
 ~data       = CSVFileReader.read(~directory ++ ~track ++ ".ena");
 
@@ -13,11 +16,11 @@
 ~barCtr     = 0;
 ~beatCtr    = 0;
 ~targetTime = [~data[2][~barCtr].split($:)[0].asFloat,~data[3][0].split($:)[0].asFloat];
-~startTime  = Main.elapsedTime;
 ~playingBreaks = false;
-~cutting = false;
+~cutting = true;
 ~scale=[0,2,4,5,7,9,11]+1;
-
+~cutChance = 0;
+s.latency = 0;
 s.waitForBoot {
 {
     //SynthDefs
@@ -29,15 +32,15 @@ s.waitForBoot {
 
 	SynthDef(\hackWobble,{arg freq=100,modFreq=2,filterFreq=100,depth=100,bpm,amp=1;
 	var son,sweep,trig;
-	   trig = CoinGate.kr(0.5,(Impulse.kr(bpm/60))); 
- Ê 	  sweep = LFSaw.ar(Demand.kr(trig, 0, Drand([1, 2, 2, 3, 4, 5, 6, 8, 16], inf))).exprange(40, 5000); 	 
- 	  son = LFSaw.ar(freq * [0.99, 1, 1.01]).sum; 
-Ê Ê Ê Ê son = LPF.ar(son, sweep); 
-Ê Ê Ê Ê son = Normalizer.ar(son); 
-Ê Ê Ê Ê son = son + BPF.ar(son, 2000, 2); 
-	  son = son + GVerb.ar(son, 10, 0.1, 0.7, mul: 0.3); 	
-	Out.ar([0,1],son*0.2*amp);
-}).store;
+    	   trig = CoinGate.kr(0.5,(Impulse.kr(bpm/60))); 
+    	   sweep = LFSaw.ar(Demand.kr(trig, 0, Drand([1, 2, 2, 3, 4, 5, 6, 8, 16], inf))).exprange(40, 5000); 	 
+    	   son = LFSaw.ar(freq * [0.99, 1, 1.01]).sum; 
+    	   son = LPF.ar(son, sweep); 
+    	   son = Normalizer.ar(son); 
+    	   son = son + BPF.ar(son, 2000, 2); 
+    	   son = son + GVerb.ar(son, 10, 0.1, 0.7, mul: 0.3); 	
+    	Out.ar([0,1],son*0.2*amp);
+    }).store;
 
     SynthDef(\hackOut,{arg inBus;
     	var sound;
@@ -55,10 +58,13 @@ s.waitForBoot {
 
     SynthDef(\hackPlay,{arg bufnum,amp=1,t_trig,rate=1,length=1,loop=1,startPos,outBus;
     	var sound,env;
-    	env=EnvGen.ar(Env([1,1,0],[(BufFrames.kr(bufnum)/44100)*length,0]), doneAction:2);
+    	env=EnvGen.ar(Env([1,1,0],[(BufFrames.kr(bufnum)/BufSampleRate.kr(bufnum))*length,0]), doneAction:2);
     	sound=PlayBuf.ar(2, bufnum, BufRateScale.kr(bufnum)*rate, t_trig, startPos,loop);
     	SendReply.kr(t_trig,'glitch',startPos);
-    	Out.ar(outBus,sound*env*amp)
+    	
+    	Out.ar(outBus,
+    	    Pan2.ar(sound*env*amp, 0);
+    	)
     }).add;
 
     SynthDef(\hackRev,{arg inBus,outBus,revMix=0,room=0,damp=0,mix=0.5;
@@ -96,9 +102,9 @@ s.waitForBoot {
 // Functions
 
 ~updateWobble={arg x,y;
-~wobbleSynth.set(\amp,x,\freq,~scale[(y*7).floor]*50);
+    ~wobbleSynth.set(\amp,x,\freq,~scale[(y*7).floor]*50);
 ~playSynth.set(\amp,(1-x));	
-}
+};
 
 ~playRate = {arg newRate=(-1),dur=1;
 	{
@@ -140,10 +146,10 @@ s.waitForBoot {
     "buttontrigStart".postln;
 	if(0.5.coin,{
         // ~retrigRate.value([2,4,8,16,32].choose, [2,-2,-0.5].choose,~playSynth);
-        ~retrigRate.value([1,2,4,8,16,32].wchoose([3,4,4,2,1,1].normalizeSum), [1.5,-1.5,-0.5].choose,~playSynth);
+        ~retrigRate.value([1,2,4,8,16].wchoose([3,4,4,2,1].normalizeSum), [1.5,-1.5,-0.5].choose,~playSynth);
 		
 	},{
-		~retrig.value([1,2,4,8,16,32].wchoose([3,4,4,2,1,1].normalizeSum), ~playSynth);
+		~retrig.value([1,2,4,8,16].wchoose([3,4,4,2,1].normalizeSum), ~playSynth);
 	});
 };
 
@@ -170,24 +176,20 @@ s.waitForBoot {
     }.fork(AppClock);
 };
 
-~setBreaksOn={
-	playingBreaks=true;
-}
+~setBreaksOn = {
+	~playingBreaks=true;
+};
 
 ~setBreaksOff={
-	playingBreaks=false;
-}
+	~playingBreaks=false;
+};
 
-~setAutoChopsOn={
-	cutting=true;
-}
-
-~setAutoChopsOff={
-	cutting=false;
-}
-
+~barcount = 0;
 ~newBar = {
-	if(~playingBreaks,{~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[7.rand], \rate, (~bpm / 96)])});
+    "~barcount: ".post; (~barcount).postln;
+    ~barcount = ~barcount + 1;
+    // Synth(\beep, [\freq, 1000, \amp, 0.5, \pan, 0, \out, 0]);
+	if(~playingBreaks,{~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[7.rand], \rate, (~bpm / 96), \amp, 0.5, \startPos, 0])});
 };
 
 
@@ -197,12 +199,13 @@ s.waitForBoot {
 
 ~newBeat = {
     // ~stopTrig.value;
-	~playSynth.set(\rate,1,\t_trig,1,\startPos,~targetTime[1]*44100);
+	~playSynth.set(\rate, 1, \t_trig,1, \startPos, ~targetTime[1]*44100);
+    // Synth(\beep, [\freq, 2000, \amp, 0.2, \pan, 0, \out, 0]);
     // ~revSynth.set(\mix,0);
     // ~filterSynth.set(\mix,0);
 	if(~beatCtr%4==0,{~newBar.value});
 	{
-	    if((0.35.coin) && (~cutting),{ 
+	    if((~cutChance.coin) && (~cutting),{ 
 	        ~stopTrig.();
 	        ~startTrig.();
     	    [1,2,0.5].choose.wait;
@@ -248,11 +251,14 @@ s.waitForBoot {
 
 ~startFunction = {
     {
-        ~playSynth.set(\rate, 1);
-        ~syncRoutine.play;
+        
+        s.makeBundle(0.2, {
+            ~playSynth.set(\rate, 1);
+        });
+        ~syncRoutine.play;            
         {~moviePlayer.start}.fork(AppClock);
-        ~data[3][0].split($:)[0].asFloat.wait; 
-        ~wobbleSynth=Synth(\hackWobble,[\freq,50,\bpm,140,\amp,0]);       
+        // ~data[3][0].split($:)[0].asFloat.wait; 
+        // ~wobbleSynth=Synth(\hackWobble,[\freq,50,\bpm,140,\amp,0]);       
     }.fork
 };
 
@@ -265,6 +271,7 @@ s.waitForBoot {
 //Routines 
 
 ~syncRoutine = Routine {
+    ~startTime  = Main.elapsedTime;
     inf.do{
     	if((Main.elapsedTime-~startTime)>~targetTime[0],{
     		//"BAR".postln;
@@ -277,6 +284,7 @@ s.waitForBoot {
     		//"BEAT".postln;
     		//Synth(\bleep);
     		~newBeat.value;
+            // Synth(\beep, [\freq, 2000, \amp, 0.2, \pan, 0, \out, 0]);
     		~beatCtr=~beatCtr+1;
     		~targetTime[1]=~data[3][~beatCtr].split($:)[0].asFloat;
     	});
@@ -348,9 +356,9 @@ s.waitForBoot {
 
 
 ~actionFunctions = Dictionary[];
-~actionFunctions['hit'] = [~playrate, ~filterSweep];
+~actionFunctions['hit'] = [~playrate];
 ~actionFunctions['2D'] = [~setFilter2D, ~setRev2D];
-~actionFunctions['toggle'] = [[~buttonRetrigStart, ~buttonRetrigStop]];
+~actionFunctions['toggle'] = [[~buttonRetrigStart, ~buttonRetrigStop], [~setBreaksOn, ~setBreaksOff]];
 
 ~chosenFunctions = Array.newClear(~numCornerElements);
 
@@ -475,7 +483,12 @@ s.waitForBoot {
             ~stopFunction.();
         };
     });
+    
+~cutSlider = Slider(~win, Rect(40, (~height-~movieHeight)/2, 40, ~movieHeight))
+    .action_({|slider| ~cutChance = slider.value.linlin(0, 1, 0.1, 1);})
 )
+
+
 
 // Functions to call from buttons
 //      ~buttonRetrigStart on mouse down
