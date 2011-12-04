@@ -362,7 +362,7 @@ s.waitForBoot {
 
 
 ~actionFunctions = Dictionary[];
-~actionFunctions['hit'] = [~playrate, ~setBreaks];
+~actionFunctions['hit'] = [~playRate, ~setBreaks];
 ~actionFunctions['2D'] = [~setFilter2D, ~setRev2D];
 ~actionFunctions['toggle'] = [[~buttonRetrigStart, ~buttonRetrigStop]];
 
@@ -373,8 +373,9 @@ s.waitForBoot {
     var key;
     ~getFunctionKey = {
         key = ~actionFunctions.keys.choose;
+        "key: ".post; (key).postln;
         if(~actionFunctions[key].size != 0) {
-            ~chosenFunctions[i] = [key, ~actionFunctions[key].pop];
+            ~chosenFunctions[i] = [key, ~actionFunctions[key].removeAt(~actionFunctions[key].size.rand)];
         } {
             ~actionFunctions.removeAt(key);
             
