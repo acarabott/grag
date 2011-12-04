@@ -124,7 +124,7 @@ if(~numCornerElements > 0) {
     
     symbol = i.asSymbol;
     
-    if(1.coin) {
+    if(0.5.coin) {
         if(0.5.coin) {
             buttonIsHold = true;
             alpha = 0.5;
@@ -166,8 +166,26 @@ if(~numCornerElements > 0) {
             
         };
         
-        // if(0.5.coin) {
-        //     ~guiControls.last.background
-        // };
+    } {
+        //2D sliders
+        ~guiControls[symbol] = Slider2D(item, bounds);
+        ~guiControls[symbol].backgroundImage_(image, alpha:0.4);
+        ~guiControlFunctions[symbol] = {};
+        ~guiControls[symbol].action_({|slider|
+            ~guiControlFunctions[symbol].(slider.x, slider,y);
+            ~guiControls[symbol].backgroundImage_(image, alpha:[slider.x, slider.y].mean.linlin(0, 1, 0.4, 1));
+        });
     };
 };
+
+~playWidth = 300;
+~playButton = Button(~win, Rect((~width-~playWidth)/2, 975, ~playWidth, 100))
+    .font_(Font("Santa Fe LET", 70))
+    .states_([
+        ["Play", Color.black, Color.white],
+        ["Stop", Color.white, Color.black]
+    ])
+    .action_({|butt|
+        // Play Action
+    });
+
