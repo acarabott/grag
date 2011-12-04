@@ -1,6 +1,6 @@
 (
 //Variables
-~directory  = "sounds/";
+~directory  = "/Users/arthurc/Documents/programming/computerMusic/grag/";
 
 ~sandbox    = "emi_professor_green";
 ~track      = "emi_professor_green_EVN24279-mp4-high.mp4";
@@ -59,15 +59,15 @@ s.waitForBoot {
     
     s.sync;
     //Buffers
-    ~audioBuffer    = MP3.readToBuffer(s,"sounds/"++~track++".mp3");
-    ~breakBuffers   = Array.fill(8, {arg i; Buffer.read(s,"sounds/breaks/BREAK"++(i+1)++".aif")});
+    ~audioBuffer    = MP3.readToBuffer(s,~directory++~track++".mp3");
+    ~breakBuffers   = Array.fill(8, {arg i; Buffer.read(s, ~directory ++ "breaks/BREAK"++(i+1)++".aif")});
     s.sync;
     //Busses
     ~busses = Array.fill(3, {Bus.audio(s,2)});
     
     s.sync;
     //Synths
-    ~playSynth      = Synth(\hackPlay, [\bufnum, ~audioBuffer, \outBus, ~busses[0]]);
+    ~playSynth      = Synth(\hackPlay, [\bufnum, ~audioBuffer, \outBus, ~busses[0], \rate, 0]);
     ~filterSynth    = Synth.after(~playSynth, \hackHPFilter, [\outBus, ~busses[1], \inBus, ~busses[0], \mix, 0]);
     ~revSynth       = Synth.after(~filterSynth, \hackRev,[\outBus, ~busses[2], \inBus, ~busses[1], \mix, 0, \room, 1, \damp, 1, \revMix, 1]);
     ~outSynth       = Synth.after(~revSynth, \hackOut,[\inBus, ~busses[2]]);
@@ -185,6 +185,7 @@ s.waitForBoot {
 
 ~startFunction = {
     {
+        ~playSynth.set(\rate, 1);
         ~syncRoutine.play;
         {~moviePlayer.start}.fork(AppClock);
         ~data[3][0].split($:)[0].asFloat.wait;        
@@ -192,6 +193,7 @@ s.waitForBoot {
 };
 
 ~stopFunction = {
+    ~playSynth.free;
     ~syncRoutine.stop;
     {~moviePlayer.stop}.fork(AppClock);
     ~trigFunc.stop;
@@ -237,10 +239,11 @@ s.waitForBoot {
 ~movieWidth     = ~sbounds.width/2;
 ~movieTop       = 0 + (~movieHeight/2);
 ~moviePlayer    = SCMovieView(~win, Rect((~width-~movieWidth)/2, ~movieTop, ~movieWidth, ~movieHeight));
-~moviePlayer.path_(~directory ++ ~track ++ "mp4"); // this might need to be different?
+~moviePlayer.path_(~directory ++ ~track); // this might need to be different?
 ~moviePlayer.showControllerAndAdjustSize(false,false);
 ~moviePlayer.visible = false;
 ~moviePlayer.background_(Color.clear);
+~moviePlayer.muted_(true);
 
 ~numCornerElements = 4;
 ~cornerElements = Array.newClear(~numCornerElements);
@@ -367,7 +370,7 @@ s.waitForBoot {
         ["Stop", Color.white, Color.black]
     ])
     .action_({|butt|
-        if(butt.state == 1) {
+        if(butt.value == 1) {
             ~moviePlayer.visible = true;
             ~startFunction.();
         } {
@@ -375,7 +378,8 @@ s.waitForBoot {
             ~stopFunction.();
         };
     });
-  )
+)
+
 // Functions to call from buttons
 //      ~buttonRetrigStart on mouse down
 //      ~buttonRetrigStop on mouse up
