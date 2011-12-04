@@ -12,7 +12,7 @@
 ~beatLength = (1 / (~bpm/60)); 
 ~barCtr     = 0;
 ~beatCtr    = 0;
-~targetBpm = [~data[2][~barCtr].split($:)[0].asFloat,~data[3][~beatCtr].split($:)[0].asFloat];
+~targetTime = [~data[2][~barCtr].split($:)[0].asFloat,~data[3][0].split($:)[0].asFloat];
 ~startTime  = Main.elapsedTime;
 ~playingBreaks = false;
 ~cutting = false;
@@ -97,45 +97,55 @@ s.waitForBoot {
 
 ~filterSweep = {arg dur=1;
 	{
+	    "filter sweeping".postln;
+        // ~filterSynth.set(\mix,0.7);
+	    
 		~filterSynth.set(\freq,5000);
 		dur.wait;
-		~filterSynth.set(\freq,10);
+		~filterSynth.set(\freq, 10);
+		"stopped filter sweeping".postln;
 	}.fork(~clock);
 };
 
 ~setFilter2D = {arg x,y;
-  	~filterSynth.set(\freq,(x*5000)+10,\q,y*3);	
+    "filter".postln;
+    // [x,y].postln;
+    ~filterSynth.set(\mix, 0.7, \freq,x.linlin(0, 1, 10, 5000) ,\q, y.linlin(0, 1, 0.1, 2));  
 };
 
 ~setRev2D = {arg x,y;
-	~revSynth.set(\mix,x,\room,y);
+    "reverb!".postln;
+    // [x, y].postln;
+    ~revSynth.set(\mix, x, \room, y);
 };
 
 ~buttonRetrigStart = {
+    "buttontrigStart".postln;
 	if(0.5.coin,{
-		~retrigRate.value([2,4,8,16,32].choose,(rrand(0,4)),[2,-2,-0.5].choose);
+        // ~retrigRate.value([2,4,8,16,32].choose, [2,-2,-0.5].choose,~playSynth);
+        ~retrigRate.value([1,2,4,8,16,32].wchoose([3,4,4,2,1,1].normalizeSum), [1.5,-1.5,-0.5].choose,~playSynth);
+		
 	},{
-		~retrig.value([2,4,8,16,32].choose,(rrand(0,4)));
+		~retrig.value([1,2,4,8,16,32].wchoose([3,4,4,2,1,1].normalizeSum), ~playSynth);
 	});
 };
 
 ~buttonRetrigStop = {
+    "buttonRetrigStop".postln;
 	~playSynth.set(\rate,1);
 	~trigFunc.stop;
 };
 
 ~startTrig={
 	if(0.5.coin, {
-    	~retrigRate.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),[2,-2,-0.5].choose,~playSynth);
+        // ~retrigRate.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),[1.5,-1.5,-0.5].choose,~playSynth);
+        ~retrigRate.value([1,2,4, 8].wchoose([0.3,0.3,0.2,0.1]),[1.5,-1.5,-0.5].choose,~playSynth);
 	},{
-    	~retrig.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),~playSynth);
+        // ~retrig.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),~playSynth);
+        ~retrig.value([1,2,4, 8].wchoose([0.3,0.3,0.2,0.1]),~playSynth);
+    	
 	});
 };
-
-~actionFunctions = Dictionary[];
-~actionFunctions['hit'] = [~playrate, ~filterSweep];
-~actionFunctions['2D'] = [~setFilter2D, ~setRev2D];
-~actionFunctions['toggle'] = [[~buttonRetrigStart, ~buttonRetrigStop]];
 
 ~setMovieTime = {arg pos;
     {
@@ -153,13 +163,22 @@ s.waitForBoot {
 };
 
 ~newBeat = {
-	~stopTrig.value;
+    // ~stopTrig.value;
 	~playSynth.set(\rate,1,\t_trig,1,\startPos,~targetTime[1]*44100);
-	~revSynth.set(\mix,0);
-	~filterSynth.set(\mix,0);
+    // ~revSynth.set(\mix,0);
+    // ~filterSynth.set(\mix,0);
 	if(~beatCtr%4==0,{~newBar.value});
-	if((0.35.coin) && (~cutting),{~startTrig.value});
-	if(0.2.coin,{~revSynth.set(\mix,1)});
+	{
+	    if((0.35.coin) && (~cutting),{ 
+	        ~stopTrig.();
+	        ~startTrig.();
+    	    [1,2,0.5].choose.wait;
+            // ~cutting = false;
+    	    ~stopTrig.();
+	        
+        });
+	}.fork;
+    // if(0.2.coin,{~revSynth.set(\mix,1)});
 	//~breakcore.value;
 	//if(0.1.coin,{~filterSynth.set(\mix,1)});
 };
@@ -178,6 +197,7 @@ s.waitForBoot {
 	~trigFunc={inf.do{
 		//["retrig",~audioBuffer.sampleRate*beatLength*(beatPos+randPos)].postln;
 		trackBuffer.set(\t_trig,1,\startPos,~audioBuffer.sampleRate*~beatLength*(~beatCtr));
+		"trig!".postln;
 		(1/rate).wait;
 	}}.fork(~clock);
 };
@@ -186,6 +206,7 @@ s.waitForBoot {
 	var increment;
 	increment=target/rate;
 	~trigFunc={inf.do{arg i;
+	    "trigRate".postln;
 		//["retrig",~audioBuffer.sampleRate*beatLength*(beatPos+randPos)].postln;
 		trackBuffer.set(\t_trig,1,\startPos,~audioBuffer.sampleRate*~beatLength*(~beatCtr),\rate,1+(increment*i));
 		(1/rate).wait;
@@ -291,22 +312,30 @@ s.waitForBoot {
 ~guiControlStates = Dictionary[];
 ~guiControlFunctions = Dictionary[];
 
+
+~actionFunctions = Dictionary[];
+~actionFunctions['hit'] = [~playrate, ~filterSweep];
+~actionFunctions['2D'] = [~setFilter2D, ~setRev2D];
+~actionFunctions['toggle'] = [[~buttonRetrigStart, ~buttonRetrigStop]];
+
 ~chosenFunctions = Array.newClear(~numCornerElements);
 
 
 ~numCornerElements.do { |i|
-    var key = ~actionFunctions.keys.choose;
-    
+    var key;
     ~getFunctionKey = {
+        key = ~actionFunctions.keys.choose;
         if(~actionFunctions[key].size != 0) {
-            ~chosenFunction[i] = [key, ~actionFunctions[key].pop];
+            ~chosenFunctions[i] = [key, ~actionFunctions[key].pop];
         } {
             ~actionFunctions.removeAt(key);
-            ~getFunctionKey.();
+            
+            if(~actionFunctions.values.flatten.size != 0) {
+                ~getFunctionKey.();
+            };
         };        
     };
-    
-    
+    ~getFunctionKey.();
 };
 
 ~cornerElements.do { |item, i|
@@ -333,9 +362,10 @@ s.waitForBoot {
     image.setSize(bounds.width, bounds.height);
     
     symbol = i.asSymbol;
-    
-    if(0.5.coin) {
-        if(0.5.coin) {
+
+    if(['hit', 'toggle'].includes(~chosenFunctions[i][0])) {
+        
+        if(~chosenFunctions[i][0] == 'toggle') {
             buttonIsHold = true;
             alpha = 0.5;
         } {
@@ -345,12 +375,13 @@ s.waitForBoot {
         
         ~guiControls[symbol] = UserView(item, bounds);
         ~guiControlStates[symbol] = false;
-        ~guiControlFunctions[symbol] = [{}, 'hit'];
+        ~guiControlFunctions[symbol] = ~chosenFunctions[i][1];
         ~guiControls[symbol].background_(Color.black);
         ~guiControls[symbol].backgroundImage_(image, alpha:alpha);
         
         if(buttonIsHold.not) {
             // Sticky buttons
+            "sticky button".postln;
             ~guiControls[symbol].mouseDownAction_({
                 if(~guiControlStates[symbol]) {
                     ~guiControls[symbol].backgroundImage_(image, alpha:0.5);
@@ -362,29 +393,33 @@ s.waitForBoot {
                 ~guiControlStates[symbol] = ~guiControlStates[symbol].not;
             });
         } {
-            // Hold down buttons
+            // Toggle down buttons
+            "toggle button".postln;
             ~guiControls[symbol].mouseDownAction_({
                 ~guiControls[symbol].backgroundImage_(image, alpha:1);
-                ~guiControlFunctions[symbol].(1);
+                ~guiControlFunctions[symbol][0].();
                 ~guiControlStates[~guiControlStates.size-1] = ~guiControlStates[symbol].not;
             });
             ~guiControls[symbol].mouseUpAction_({
                 ~guiControls[symbol].backgroundImage_(image, alpha:0.5);
-                ~guiControlFunctions[symbol].(0);
+                ~guiControlFunctions[symbol][1].();
                 ~guiControlStates[~guiControlStates.size-1] = ~guiControlStates[symbol].not;
             });
             
         };
         
     } {
-        //2D sliders
-        ~guiControls[symbol] = Slider2D(item, bounds);
-        ~guiControls[symbol].backgroundImage_(image, alpha:0.4);
-        ~guiControlFunctions[symbol] = [{},'2D'];
-        ~guiControls[symbol].action_({|slider|
-            ~guiControlFunctions[symbol].(slider.x, slider,y);
-            ~guiControls[symbol].backgroundImage_(image, alpha:[slider.x, slider.y].mean.linlin(0, 1, 0.4, 1));
-        });
+        if(~chosenFunctions[i][0] == '2D') {
+            "2d slider".postln;
+            //2D sliders
+            ~guiControls[symbol] = Slider2D(item, bounds);
+            ~guiControls[symbol].backgroundImage_(image, alpha:0.4);
+            ~guiControlFunctions[symbol] = ~chosenFunctions[i][1];
+            ~guiControls[symbol].action_({|slider|
+                ~guiControlFunctions[symbol].(slider.x, slider.y);
+                ~guiControls[symbol].backgroundImage_(image, alpha:[slider.x, slider.y].mean.linlin(0, 1, 0.4, 1));
+            });
+        }
     };
 };
 
