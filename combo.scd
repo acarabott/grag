@@ -2,10 +2,10 @@
 ~directory  = "/Users/arthurc/Documents/programming/computerMusic/grag/";
 
 ~sandbox    = "emi_professor_green";
+~track      = "emi_professor_green_EVN24279-mp4-high.mp4";
 
-~track      = "trackname";
+~data       = CSVFileReader.read(~directory ++ ~track ++ ".ena");
 
-~data       = CSVFileReader.read(~directory ++ "sounds/" ++ ~track ++ ".ena");
 ~bpm        = ~data[0][0].asFloat;
 ~clock      = TempoClock(~bpm/60);
 ~beatLength = (1 / (~bpm/60)); 
