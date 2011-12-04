@@ -1,18 +1,18 @@
 (
 //Variables
-~directory  = "sounds/";
+~directory  = "/Users/arthurc/Documents/programming/computerMusic/grag/";
 
 ~sandbox    = "emi_professor_green";
-
-~track      = "profGreen";
+~track      = "emi_professor_green_EVN24279-mp4-high.mp4";
 
 ~data       = CSVFileReader.read(~directory ++ ~track ++ ".ena");
+
 ~bpm        = ~data[0][0].asFloat;
 ~clock      = TempoClock(~bpm/60);
 ~beatLength = (1 / (~bpm/60)); 
 ~barCtr     = 0;
 ~beatCtr    = 0;
-~targetBpm = [~data[2][~barCtr].split($:)[0].asFloat,~data[3][~beatCtr].split($:)[0].asFloat];
+~targetTime = [~data[2][~barCtr].split($:)[0].asFloat,~data[3][0].split($:)[0].asFloat];
 ~startTime  = Main.elapsedTime;
 ~playingBreaks = false;
 ~cutting = false;
@@ -71,15 +71,15 @@ s.waitForBoot {
     
     s.sync;
     //Buffers
-    ~audioBuffer    = MP3.readToBuffer(s,"sounds/"++~track++".mp3");
-    ~breakBuffers   = Array.fill(8, {arg i; Buffer.read(s,"sounds/breaks/BREAK"++(i+1)++".aif")});
+    ~audioBuffer    = MP3.readToBuffer(s,~directory++~track++".mp3");
+    ~breakBuffers   = Array.fill(8, {arg i; Buffer.read(s, ~directory ++ "breaks/BREAK"++(i+1)++".aif")});
     s.sync;
     //Busses
     ~busses = Array.fill(3, {Bus.audio(s,2)});
     
     s.sync;
     //Synths
-    ~playSynth      = Synth(\hackPlay, [\bufnum, ~audioBuffer, \outBus, ~busses[0]]);
+    ~playSynth      = Synth(\hackPlay, [\bufnum, ~audioBuffer, \outBus, ~busses[0], \rate, 0]);
     ~filterSynth    = Synth.after(~playSynth, \hackHPFilter, [\outBus, ~busses[1], \inBus, ~busses[0], \mix, 0]);
     ~revSynth       = Synth.after(~filterSynth, \hackRev,[\outBus, ~busses[2], \inBus, ~busses[1], \mix, 0, \room, 1, \damp, 1, \revMix, 1]);
     ~outSynth       = Synth.after(~revSynth, \hackOut,[\inBus, ~busses[2]]);
@@ -101,28 +101,67 @@ s.waitForBoot {
 }
 
 ~playRate = {arg newRate=(-1),dur=1;
-	~playSynth.set(\amp,0);
 	{
+    	~playSynth.set(\amp,0);
 		~newSynth=Synth(\hackPlay,[\bufnum,~audioBuffer,\startPos,~targetTime[1]*~audioBuffer.sampleRate]);
 		dur.wait;
 		~newSynth.free;
+		~playSynth.set(\amp, 1);
+    	
 	}.fork(~clock);
+	
 };
 
 ~filterSweep = {arg dur=1;
 	{
+	    "filter sweeping".postln;
+        // ~filterSynth.set(\mix,0.7);
+	    
 		~filterSynth.set(\freq,5000);
 		dur.wait;
-		~filterSynth.set(\freq,10);
+		~filterSynth.set(\freq, 10);
+		"stopped filter sweeping".postln;
 	}.fork(~clock);
 };
 
 ~setFilter2D = {arg x,y;
-  	~filterSynth.set(\freq,(x*5000)+10,\q,y*3);	
+    "filter".postln;
+    // [x,y].postln;
+    ~filterSynth.set(\mix, 0.7, \freq,x.linlin(0, 1, 10, 5000) ,\q, y.linlin(0, 1, 0.1, 2));  
 };
 
 ~setRev2D = {arg x,y;
-	~revSynth.set(\mix,x,\room,y);
+    "reverb!".postln;
+    // [x, y].postln;
+    ~revSynth.set(\mix, x, \room, y);
+};
+
+~buttonRetrigStart = {
+    "buttontrigStart".postln;
+	if(0.5.coin,{
+        // ~retrigRate.value([2,4,8,16,32].choose, [2,-2,-0.5].choose,~playSynth);
+        ~retrigRate.value([1,2,4,8,16,32].wchoose([3,4,4,2,1,1].normalizeSum), [1.5,-1.5,-0.5].choose,~playSynth);
+		
+	},{
+		~retrig.value([1,2,4,8,16,32].wchoose([3,4,4,2,1,1].normalizeSum), ~playSynth);
+	});
+};
+
+~buttonRetrigStop = {
+    "buttonRetrigStop".postln;
+	~playSynth.set(\rate,1);
+	~trigFunc.stop;
+};
+
+~startTrig={
+	if(0.5.coin, {
+        // ~retrigRate.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),[1.5,-1.5,-0.5].choose,~playSynth);
+        ~retrigRate.value([1,2,4, 8].wchoose([0.3,0.3,0.2,0.1]),[1.5,-1.5,-0.5].choose,~playSynth);
+	},{
+        // ~retrig.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),~playSynth);
+        ~retrig.value([1,2,4, 8].wchoose([0.3,0.3,0.2,0.1]),~playSynth);
+    	
+	});
 };
 
 ~setMovieTime = {arg pos;
@@ -151,26 +190,28 @@ s.waitForBoot {
 	if(~playingBreaks,{~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[7.rand], \rate, (~bpm / 96)])});
 };
 
-~startTrig={
-	if(0.5.coin, {
-    	~retrigRate.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),[2,-2,-0.5].choose,~playSynth);
-	},{
-    	~retrig.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),~playSynth);
-	});
-};
 
 ~stopTrig={
 	~trigFunc.stop;
 };
 
 ~newBeat = {
-	~stopTrig.value;
+    // ~stopTrig.value;
 	~playSynth.set(\rate,1,\t_trig,1,\startPos,~targetTime[1]*44100);
-	~revSynth.set(\mix,0);
-	~filterSynth.set(\mix,0);
+    // ~revSynth.set(\mix,0);
+    // ~filterSynth.set(\mix,0);
 	if(~beatCtr%4==0,{~newBar.value});
-	if((0.35.coin) && (~cutting),{~startTrig.value});
-	if(0.2.coin,{~revSynth.set(\mix,1)});
+	{
+	    if((0.35.coin) && (~cutting),{ 
+	        ~stopTrig.();
+	        ~startTrig.();
+    	    [1,2,0.5].choose.wait;
+            // ~cutting = false;
+    	    ~stopTrig.();
+	        
+        });
+	}.fork;
+    // if(0.2.coin,{~revSynth.set(\mix,1)});
 	//~breakcore.value;
 	//if(0.1.coin,{~filterSynth.set(\mix,1)});
 };
@@ -189,6 +230,7 @@ s.waitForBoot {
 	~trigFunc={inf.do{
 		//["retrig",~audioBuffer.sampleRate*beatLength*(beatPos+randPos)].postln;
 		trackBuffer.set(\t_trig,1,\startPos,~audioBuffer.sampleRate*~beatLength*(~beatCtr));
+		"trig!".postln;
 		(1/rate).wait;
 	}}.fork(~clock);
 };
@@ -197,27 +239,16 @@ s.waitForBoot {
 	var increment;
 	increment=target/rate;
 	~trigFunc={inf.do{arg i;
+	    "trigRate".postln;
 		//["retrig",~audioBuffer.sampleRate*beatLength*(beatPos+randPos)].postln;
 		trackBuffer.set(\t_trig,1,\startPos,~audioBuffer.sampleRate*~beatLength*(~beatCtr),\rate,1+(increment*i));
 		(1/rate).wait;
 	}}.fork(~clock);
 };
 
-~buttonRetrigStart = {
-	if(0.5.coin,{
-		~retrigRate.value([2,4,8,16,32].choose,(rrand(0,4)),[2,-2,-0.5].choose);
-	},{
-		~retrig.value([2,4,8,16,32].choose,(rrand(0,4)));
-	});
-};
-
-~buttonRetrigStop = {
-	~playSynth.set(\rate,1);
-	~trigFunc.stop;
-};
-
 ~startFunction = {
     {
+        ~playSynth.set(\rate, 1);
         ~syncRoutine.play;
         {~moviePlayer.start}.fork(AppClock);
         ~data[3][0].split($:)[0].asFloat.wait; 
@@ -226,6 +257,7 @@ s.waitForBoot {
 };
 
 ~stopFunction = {
+    ~playSynth.free;
     ~syncRoutine.stop;
     {~moviePlayer.stop}.fork(AppClock);
     ~trigFunc.stop;
@@ -271,10 +303,11 @@ s.waitForBoot {
 ~movieWidth     = ~sbounds.width/2;
 ~movieTop       = 0 + (~movieHeight/2);
 ~moviePlayer    = SCMovieView(~win, Rect((~width-~movieWidth)/2, ~movieTop, ~movieWidth, ~movieHeight));
-~moviePlayer.path_(~directory ++ ~track ++ "mp4"); // this might need to be different?
+~moviePlayer.path_(~directory ++ ~track); // this might need to be different?
 ~moviePlayer.showControllerAndAdjustSize(false,false);
 ~moviePlayer.visible = false;
 ~moviePlayer.background_(Color.clear);
+~moviePlayer.muted_(true);
 
 ~numCornerElements = 4;
 ~cornerElements = Array.newClear(~numCornerElements);
@@ -313,6 +346,32 @@ s.waitForBoot {
 ~guiControlStates = Dictionary[];
 ~guiControlFunctions = Dictionary[];
 
+
+~actionFunctions = Dictionary[];
+~actionFunctions['hit'] = [~playrate, ~filterSweep];
+~actionFunctions['2D'] = [~setFilter2D, ~setRev2D];
+~actionFunctions['toggle'] = [[~buttonRetrigStart, ~buttonRetrigStop]];
+
+~chosenFunctions = Array.newClear(~numCornerElements);
+
+
+~numCornerElements.do { |i|
+    var key;
+    ~getFunctionKey = {
+        key = ~actionFunctions.keys.choose;
+        if(~actionFunctions[key].size != 0) {
+            ~chosenFunctions[i] = [key, ~actionFunctions[key].pop];
+        } {
+            ~actionFunctions.removeAt(key);
+            
+            if(~actionFunctions.values.flatten.size != 0) {
+                ~getFunctionKey.();
+            };
+        };        
+    };
+    ~getFunctionKey.();
+};
+
 ~cornerElements.do { |item, i|
     var bounds;
     var mult;
@@ -337,9 +396,10 @@ s.waitForBoot {
     image.setSize(bounds.width, bounds.height);
     
     symbol = i.asSymbol;
-    
-    if(0.5.coin) {
-        if(0.5.coin) {
+
+    if(['hit', 'toggle'].includes(~chosenFunctions[i][0])) {
+        
+        if(~chosenFunctions[i][0] == 'toggle') {
             buttonIsHold = true;
             alpha = 0.5;
         } {
@@ -349,12 +409,13 @@ s.waitForBoot {
         
         ~guiControls[symbol] = UserView(item, bounds);
         ~guiControlStates[symbol] = false;
-        ~guiControlFunctions[symbol] = {};
+        ~guiControlFunctions[symbol] = ~chosenFunctions[i][1];
         ~guiControls[symbol].background_(Color.black);
         ~guiControls[symbol].backgroundImage_(image, alpha:alpha);
         
         if(buttonIsHold.not) {
             // Sticky buttons
+            "sticky button".postln;
             ~guiControls[symbol].mouseDownAction_({
                 if(~guiControlStates[symbol]) {
                     ~guiControls[symbol].backgroundImage_(image, alpha:0.5);
@@ -366,31 +427,36 @@ s.waitForBoot {
                 ~guiControlStates[symbol] = ~guiControlStates[symbol].not;
             });
         } {
-            // Hold down buttons
+            // Toggle down buttons
+            "toggle button".postln;
             ~guiControls[symbol].mouseDownAction_({
                 ~guiControls[symbol].backgroundImage_(image, alpha:1);
-                ~guiControlFunctions[symbol].(1);
+                ~guiControlFunctions[symbol][0].();
                 ~guiControlStates[~guiControlStates.size-1] = ~guiControlStates[symbol].not;
             });
             ~guiControls[symbol].mouseUpAction_({
                 ~guiControls[symbol].backgroundImage_(image, alpha:0.5);
-                ~guiControlFunctions[symbol].(0);
+                ~guiControlFunctions[symbol][1].();
                 ~guiControlStates[~guiControlStates.size-1] = ~guiControlStates[symbol].not;
             });
             
         };
         
     } {
-        //2D sliders
-        ~guiControls[symbol] = Slider2D(item, bounds);
-        ~guiControls[symbol].backgroundImage_(image, alpha:0.4);
-        ~guiControlFunctions[symbol] = {};
-        ~guiControls[symbol].action_({|slider|
-            ~guiControlFunctions[symbol].(slider.x, slider,y);
-            ~guiControls[symbol].backgroundImage_(image, alpha:[slider.x, slider.y].mean.linlin(0, 1, 0.4, 1));
-        });
+        if(~chosenFunctions[i][0] == '2D') {
+            "2d slider".postln;
+            //2D sliders
+            ~guiControls[symbol] = Slider2D(item, bounds);
+            ~guiControls[symbol].backgroundImage_(image, alpha:0.4);
+            ~guiControlFunctions[symbol] = ~chosenFunctions[i][1];
+            ~guiControls[symbol].action_({|slider|
+                ~guiControlFunctions[symbol].(slider.x, slider.y);
+                ~guiControls[symbol].backgroundImage_(image, alpha:[slider.x, slider.y].mean.linlin(0, 1, 0.4, 1));
+            });
+        }
     };
 };
+
 
 //Play Button
 ~playWidth = 300;
@@ -401,7 +467,7 @@ s.waitForBoot {
         ["Stop", Color.white, Color.black]
     ])
     .action_({|butt|
-        if(butt.state == 1) {
+        if(butt.value == 1) {
             ~moviePlayer.visible = true;
             ~startFunction.();
         } {
@@ -409,7 +475,8 @@ s.waitForBoot {
             ~stopFunction.();
         };
     });
-  )
+)
+
 // Functions to call from buttons
 //      ~buttonRetrigStart on mouse down
 //      ~buttonRetrigStop on mouse up
