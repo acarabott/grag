@@ -79,8 +79,8 @@ s.waitForBoot {
     s.sync;
     //Buffers
     ~audioBuffer    = MP3.readToBuffer(s,~directory++~track++".mp3");
-    ~breakBuffers   = Array.fill(8, {arg i; Buffer.read(s, ~directory ++ "breaks/BREAK"++(i+1)++".aif")});
-
+    // ~breakBuffers   = Array.fill(8, {arg i; Buffer.read(s, ~directory ++ "breaks/BREAK"++(i+1)++".aif")});
+    ~breakBuffers   = (~directory ++ "breaks/*.aif").pathMatch.collect{ |item, i| Buffer.read(s, item);};
     s.sync;
     //Busses
     ~busses = Array.fill(3, {Bus.audio(s,2)});
@@ -117,7 +117,7 @@ s.waitForBoot {
     if(dur == 1 && (0.5.coin)) {
         newRate = -2;
     };
-    "PLAYYYYYYRATE".postln;
+    // "PLAYYYYYYRATE".postln;
 	~playSynth.set(\amp,0);
 	~newSynth=Synth(\hackPlay,[\bufnum,~audioBuffer, \startPos,~targetTime[1]*~audioBuffer.sampleRate, \amp, 1, \rate, newRate]);
 	{~moviePlayer.rate_(newRate)}.fork(AppClock);
@@ -133,30 +133,30 @@ s.waitForBoot {
 
 ~filterSweep = {arg dur=1;
 	{
-	    "filter sweeping".postln;
+        // "filter sweeping".postln;
         // ~filterSynth.set(\mix,0.7);
 	    
 		~filterSynth.set(\freq,5000);
 		dur.wait;
 		~filterSynth.set(\freq, 10);
-		"stopped filter sweeping".postln;
+        // "stopped filter sweeping".postln;
 	}.fork(~clock);
 };
 
 ~setFilter2D = {arg x,y;
-    "filter".postln;
+    // "filter".postln;
     // [x,y].postln;
     ~filterSynth.set(\mix, 0.7, \freq, x.linlin(0, 1, 10, 5000), \res, y.linlin(0, 1, 0.1, 0.9), \amp, y.linlin(0, 1, 1, 0.8));  
 };
 
 ~setRev2D = {arg x,y;
-    "reverb!".postln;
+    // "reverb!".postln;
     // [x, y].postln;
     ~revSynth.set(\mix, x, \room, y);
 };
 
 ~buttonRetrigStart = {
-    "buttontrigStart".postln;
+    // "buttontrigStart".postln;
 	if(0.5.coin,{
         // ~retrigRate.value([2,4,8,16,32].choose, [2,-2,-0.5].choose,~playSynth);
         ~retrigRate.value([1,2,4,8,16].wchoose([3,4,4,2,1].normalizeSum), [1.5,-1.5,-0.5].choose,~playSynth);
@@ -167,13 +167,13 @@ s.waitForBoot {
 };
 
 ~buttonRetrigStop = {
-    "buttonRetrigStop".postln;
+    // "buttonRetrigStop".postln;
 	~playSynth.set(\rate,1);
 	~trigFunc.stop;
 };
 
 ~startTrig={
-    "start trig".postln;
+    // "start trig".postln;
 	if(0.5.coin, {
         // ~retrigRate.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),[1.5,-1.5,-0.5].choose,~playSynth);
         ~retrigRate.value([1,2,4, 8].wchoose([0.3,0.3,0.2,0.1]),[1.5,-1.5,-0.5].choose,~playSynth);
@@ -194,9 +194,9 @@ s.waitForBoot {
 ~setBreaks = {|val|
     if(val == 1) {
     	~playingBreaks=true;
-        "breaks On".postln;
+        // "breaks On".postln;
     } {
-        "breaks off".postln;
+        // "breaks off".postln;
         
         ~playingBreaks = false;
     };
@@ -205,9 +205,15 @@ s.waitForBoot {
 
 ~barcount = 0;
 ~newBar = {
+    var rate;
     ~barcount = ~barcount + 1;
     // Synth(\beep, [\freq, 1000, \amp, 0.5, \pan, 0, \out, 0]);
-	if(~playingBreaks,{~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[7.rand], \rate, (~bpm / 96), \amp, 0.5, \startPos, 0])});
+    if(0.7.coin) {
+        rate = 2
+    } {
+        rate = 1;
+    };
+	if(~playingBreaks,{~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[~breakBuffers.size.rand], \rate, (~bpm / 96), \amp, 0.5, \startPos, 0, \rate, rate])});
 };
 
 
@@ -251,7 +257,7 @@ s.waitForBoot {
 	~trigFunc={inf.do{
 		//["retrig",~audioBuffer.sampleRate*beatLength*(beatPos+randPos)].postln;
 		trackBuffer.set(\t_trig,1,\startPos,~audioBuffer.sampleRate*~beatLength*(~beatCtr));
-		"trig!".postln;
+        // "trig!".postln;
 		(1/rate).wait;
 	}}.fork(~clock);
 };
@@ -260,7 +266,7 @@ s.waitForBoot {
 	var increment;
 	increment=target/rate;
 	~trigFunc={inf.do{arg i;
-	    "trigRate".postln;
+        // "trigRate".postln;
 		//["retrig",~audioBuffer.sampleRate*beatLength*(beatPos+randPos)].postln;
 		trackBuffer.set(\t_trig,1,\startPos,~audioBuffer.sampleRate*~beatLength*(~beatCtr),\rate,1+(increment*i));
 		(1/rate).wait;
@@ -385,7 +391,7 @@ s.waitForBoot {
     var key;
     ~getFunctionKey = {
         key = ~actionFunctions.keys.choose;
-        "key: ".post; (key).postln;
+        // "key: ".post; (key).postln;
         if(~actionFunctions[key].size != 0) {
             ~chosenFunctions[i] = [key, ~actionFunctions[key].removeAt(~actionFunctions[key].size.rand)];
         } {
@@ -442,7 +448,7 @@ s.waitForBoot {
         
         if(buttonIsHold.not) {
             // Sticky buttons
-            "sticky button".postln;
+            // "sticky button".postln;
             ~guiControls[symbol].mouseDownAction_({
                 if(~guiControlStates[symbol]) {
                     ~guiControls[symbol].backgroundImage_(image, alpha:0.5);
@@ -456,7 +462,7 @@ s.waitForBoot {
             });
         } {
             // Toggle down buttons
-            "toggle button".postln;
+            // "toggle button".postln;
             ~guiControls[symbol].mouseDownAction_({
                 ~guiControls[symbol].backgroundImage_(image, alpha:1);
                 ~guiControlFunctions[symbol][0].();
@@ -472,7 +478,7 @@ s.waitForBoot {
         
     } {
         if(~chosenFunctions[i][0] == '2D') {
-            "2d slider".postln;
+            // "2d slider".postln;
             //2D sliders
             ~guiControls[symbol] = Slider2D(item, bounds);
             ~guiControls[symbol].backgroundImage_(image, alpha:0.4);
