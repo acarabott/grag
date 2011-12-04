@@ -107,9 +107,10 @@ s.waitForBoot {
 };
 
 ~playRate = {arg newRate=(-1),dur=1;
+    "PLAYYYYYYRATE".postln;
 	{
     	~playSynth.set(\amp,0);
-		~newSynth=Synth(\hackPlay,[\bufnum,~audioBuffer,\startPos,~targetTime[1]*~audioBuffer.sampleRate]);
+		~newSynth=Synth(\hackPlay,[\bufnum,~audioBuffer,\startPos,~targetTime[1]*~audioBuffer.sampleRate, \amp, 1]);
 		dur.wait;
 		~newSynth.free;
 		~playSynth.set(\amp, 1);
@@ -160,6 +161,7 @@ s.waitForBoot {
 };
 
 ~startTrig={
+    "start trig".postln;
 	if(0.5.coin, {
         // ~retrigRate.value([2,4,8,16].wchoose([0.3,0.3,0.2,0.1]),[1.5,-1.5,-0.5].choose,~playSynth);
         ~retrigRate.value([1,2,4, 8].wchoose([0.3,0.3,0.2,0.1]),[1.5,-1.5,-0.5].choose,~playSynth);
@@ -176,17 +178,21 @@ s.waitForBoot {
     }.fork(AppClock);
 };
 
-~setBreaksOn = {
-	~playingBreaks=true;
+
+~setBreaks = {|val|
+    if(val == 1) {
+    	~playingBreaks=true;
+        "breaks On".postln;
+    } {
+        "breaks off".postln;
+        
+        ~playingBreaks = false;
+    };
 };
 
-~setBreaksOff={
-	~playingBreaks=false;
-};
 
 ~barcount = 0;
 ~newBar = {
-    "~barcount: ".post; (~barcount).postln;
     ~barcount = ~barcount + 1;
     // Synth(\beep, [\freq, 1000, \amp, 0.5, \pan, 0, \out, 0]);
 	if(~playingBreaks,{~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[7.rand], \rate, (~bpm / 96), \amp, 0.5, \startPos, 0])});
@@ -301,7 +307,7 @@ s.waitForBoot {
 ~win = Window("REEEEMIX", Rect(0, 0, ~width, ~height)).front;
 ~imagePaths = (~directory ++ ~sandbox ++ "*.jpg").pathMatch;
 
-~backgroundImage = SCImage.new(~imagePaths.choose).scalesWhenResized_(true);
+~backgroundImage = SCImage.new(~directory ++ "emi_professor_green_5099964806754-cover.jpg").scalesWhenResized_(true);
 ~imageBounds = ~backgroundImage.bounds;
 ~ratio = ~imageBounds.width / ~imageBounds.height;
 ~backgroundImage.setSize(~width, ~width / ~ratio);
@@ -356,9 +362,9 @@ s.waitForBoot {
 
 
 ~actionFunctions = Dictionary[];
-~actionFunctions['hit'] = [~playrate];
+~actionFunctions['hit'] = [~playrate, ~setBreaks];
 ~actionFunctions['2D'] = [~setFilter2D, ~setRev2D];
-~actionFunctions['toggle'] = [[~buttonRetrigStart, ~buttonRetrigStop], [~setBreaksOn, ~setBreaksOff]];
+~actionFunctions['toggle'] = [[~buttonRetrigStart, ~buttonRetrigStop]];
 
 ~chosenFunctions = Array.newClear(~numCornerElements);
 
@@ -432,6 +438,7 @@ s.waitForBoot {
                     ~guiControls[symbol].backgroundImage_(image, alpha:1);
                     ~guiControlFunctions[symbol].(1);
                 };
+                
                 ~guiControlStates[symbol] = ~guiControlStates[symbol].not;
             });
         } {
