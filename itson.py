@@ -11,7 +11,7 @@ config.ECHO_NEST_API_KEY = "YLTCU72SODVIC00NB"
 config.ECHO_NEST_CONSUMER_KEY = 'd0fe2f9558fb209037fc49a4227ac81d'
 config.ECHO_NEST_SHARED_SECRET = '9QNMqlVDQWWgMjxJVoej0Q'
 
-sandbox_name = 'emi_tinie_tempah'
+sandbox_name = 'emi_gorillaz'
 
 # listing = sandbox.list(sandbox_name)
 # asset = sandbox.access(sandbox_name, "0e804b6859738850673ae0fa18a20145")
@@ -29,31 +29,35 @@ asslist = sandbox.list(sandbox_name, 100)
 
 needVideo = True
 
-# videos = []
-# 
-# for item in asslist:
-#     if 'title' in item:
-#         if item['title'].find('Music Video') > -1 and item['title'].find('Clip') == -1 and item['format'].find('rm') == -1:
-#             if item['title'].find('Frisky') > -1:
-#                 videos.append(item)
+videos = []
 
+for item in asslist:
+    if 'title' in item:
+        if item['title'].find('Music Video') > -1 and item['title'].find('Clip') == -1 and item['format'].find('rm') == -1:
+            if item['title'].find('streaming') == -1:
+                videos.append(item)
+            # if item['title'].find('Frisky') > -1:
 
 print 'selecting video'
 # print videos
-# video = random.choice(videos)
+video = random.choice(videos)
+filename = str(video['filename']).partition('/')[2];
 
-# video_asset = sandbox.access(sandbox_name, video['id'])
-video_asset = sandbox.access(sandbox_name, '4a0be7c9d98e734d643adb6b9d31b0e4')
+print filename
+video_asset = sandbox.access(sandbox_name, video['id'])
+# video_asset = sandbox.access(sandbox_name, '4a0be7c9d98e734d643adb6b9d31b0e4')
 
-urllib.urlretrieve(video_asset[0]['url'], 'song.mov')
+urllib.urlretrieve(video_asset[0]['url'], filename)
 
 print 'encoding audio'
 
-os.system('ffmpeg -i song.mov -vn -acodec libmp3lame -ab 192000 song.mp3')
+os.system('ffmpeg -i ' + filename + ' -vn -acodec libmp3lame -ab 192000 ' + filename + '.mp3')
+
+os.system('ffmpeg -i ' + filename + ' -vcodec libxvid -acodec copy ' + filename + '.mp4')
 
 print 'acquiring analysis'
 
-song_analysis   = audio.LocalAudioFile('song.mp3')
+song_analysis   = audio.LocalAudioFile(filename + '.mp3')
 sections        = song_analysis.analysis.sections
 bars            = song_analysis.analysis.bars
 beats           = song_analysis.analysis.beats
@@ -62,7 +66,7 @@ tempo           = song_analysis.analysis.tempo
 
 print 'writing analysis data'
 
-f = open('analysis.ena', 'w')
+f = open(filename + '.ena', 'w')
 
 f.write(str(tempo['value']) + '\n')
 
@@ -82,8 +86,8 @@ for beat in beats:
 f.write('\n')
 
 
+
 print 'done'
 f.close()
 
-## Need to save as correct video format
 ## Convert to wav for sc?gst
