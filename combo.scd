@@ -2,11 +2,12 @@
 //Variables
 ~directory  = "/Users/arthurc/Documents/programming/computerMusic/grag/";
 
-// ~sandbox    = "emi_tinie_tempah";
-// ~track      = "emi_tinie_tempah_EVN19323-mp4-high.mp4";
-~sandbox    = "emi_professor_green";
+~sandbox    = "emi_tinie_tempah";
+~track      = "emi_tinie_tempah_EVN19323-mp4-high.mp4";
+
+// ~sandbox    = "emi_professor_green";
+// ~track = "emi_professor_green_EVN21533-mp4-high.mp4";
 // ~track      = "emi_professor_green_EVN24279-mp4-high.mp4"
-~track = "emi_professor_green_EVN21533-mp4-high.mp4";
 
 ~data       = CSVFileReader.read(~directory ++ ~track ++ ".ena");
 
@@ -213,7 +214,7 @@ s.waitForBoot {
     } {
         rate = 1;
     };
-	if(~playingBreaks,{~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[~breakBuffers.size.rand], \rate, (~bpm / 96), \amp, 0.5, \startPos, 0, \rate, rate])});
+	if(~playingBreaks,{~breakSynth = Synth(\hackPlay, [\bufnum, ~breakBuffers[~breakBuffers.size.rand], \rate, (~bpm / 96), \amp, 0.5, \startPos, 0, \rate, rate * (~bpm / 96)])});
 };
 
 
@@ -325,7 +326,11 @@ s.waitForBoot {
 ~win = Window("REEEEMIX", Rect(0, 0, ~width, ~height)).front;
 ~imagePaths = (~directory ++ ~sandbox ++ "*.jpg").pathMatch;
 
-~backgroundImage = SCImage.new(~directory ++ "emi_professor_green_5099964806754-cover.jpg").scalesWhenResized_(true);
+if(~sandbox.asSymbol == 'emi_professor_green') {
+    ~backgroundImage = SCImage.new(~directory ++ "emi_professor_green_5099964806754-cover.jpg").scalesWhenResized_(true);    
+} {
+    ~backgroundImage = SCImage.new(~imagePaths.choose).scalesWhenResized_(true);    
+};
 ~imageBounds = ~backgroundImage.bounds;
 ~ratio = ~imageBounds.width / ~imageBounds.height;
 ~backgroundImage.setSize(~width, ~width / ~ratio);
